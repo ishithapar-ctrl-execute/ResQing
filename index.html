@@ -198,6 +198,27 @@
       </div>
       <div id="results" class="space-y-2 pb-6"><div class="text-sm text-slate-400 text-center py-8">Loading resources...</div></div>
     </section>
+    <section class="mb-6">
+  <div class="flex items-center justify-between mb-3">
+    <h2 class="text-xs font-bold text-slate-600 uppercase tracking-wider">Emergency contacts</h2>
+    <button id="contact-add" class="text-xs text-orange-600 font-semibold">+ Add</button>
+  </div>
+  <div id="contact-list" class="space-y-2"></div>
+</section>
+
+<!-- Add/edit contact modal -->
+<div id="contact-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-6" style="z-index:9998">
+  <div class="bg-white rounded-2xl max-w-sm w-full p-6">
+    <h2 id="contact-modal-title" class="font-bold text-lg mb-4">Add contact</h2>
+    <input id="contact-name" placeholder="Name (e.g. Mummy)" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-2" />
+    <input id="contact-role" placeholder="Relation (e.g. Mother)" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-2" />
+    <input id="contact-phone" placeholder="+91 98765 43210" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-4" />
+    <div class="flex gap-2">
+      <button id="contact-cancel" class="flex-1 bg-slate-100 py-2 rounded-lg font-semibold text-sm">Cancel</button>
+      <button id="contact-save" class="flex-1 bg-slate-900 text-white py-2 rounded-lg font-semibold text-sm">Save</button>
+    </div>
+  </div>
+</div>
   </main>
 
   <button id="demo-alert-btn" class="hidden"></button>
@@ -540,7 +561,95 @@
     document.getElementById('region-btn').addEventListener('click', () => {
       setTimeout(() => { updateWeather(); checkLandslideRisk(); }, 500);
     });
+    // === EMERGENCY CONTACTS (localStorage) ===
+    const CONTACT_KEY = 'resqing-contacts';
+    let contacts = [];
+    let editingContactId = null;
 
+    function loadContacts() {
+      try { contacts = JSON.parse(localStorage.getItem(CONTACT_KEY) || '[]'); }
+      catch { contacts = []; }
+    }
+
+    function saveContactsStore() {
+      localStorage.setItem(CONTACT_KEY, JSON.stringify(contacts));
+    }
+
+    function renderContacts() {
+      const list = document.getElementById('contact-list');
+      if (contacts.length === 0) {
+        list.innerHTML = '<div class="text-xs text-slate-400 text-center py-6 bg-white rounded-xl">No emergency contacts yet. Tap + Add.</div>';
+        return;
+      }
+      const avatars = ['#DC2626','#2563EB','#059669','#F59E0B','#7C3AED'];
+      list.innerHTML = contacts.map((c, i) => `
+        <div class="bg-white rounded-xl p-3 shadow-sm flex items-center gap-3" data-id="${c.id}">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0" style="background:${avatars[i % avatars.length]}">${(c.name||'?')[0].toUpperCase()}</div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-bold text-slate-900 truncate">${c.name}</div>
+            <div class="text-[11px] text-slate-500 truncate">${c.role || '—'}</div>
+            <div class="text-[10px] text-slate-400 font-mono">${c.phone}</div>
+          </div>
+          <div class="flex gap-1">
+            <a href="tel:${c.phone}" class="w-8 h-8 bg-emerald-500 text-white rounded-lg flex items-center justify-center" title="Call">📞</a>
+            <a href="sms:${c.phone}?body=HELP%20I%20need%20you" class="w-8 h-8 bg-sky-100 text-sky-700 rounded-lg flex items-center justify-center" title="SMS">💬</a>
+            <button class="contact-edit w-8 h-8 bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center" data-id="${c.id}" title="Edit">✎</button>
+            <button class="contact-del w-8 h-8 bg-red-100 text-red-600 rounded-lg flex items-center justify-center" data-id="${c.id}" title="Delete">✕</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openContactModal(contact = null) {
+      editingContactId = contact?.id || null;
+      document.getElementById('contact-modal-title').textContent = contact ? 'Edit contact' : 'Add contact';
+      document.getElementById('contact-name').value = contact?.name || '';
+      document.getElementById('contact-role').value = contact?.role || '';
+      document.getElementById('contact-phone').value = contact?.phone || '';
+      document.getElementById('contact-modal').classList.remove('hidden');
+    }
+
+    function closeContactModal() {
+      document.getElementById('contact-modal').classList.add('hidden');
+    }
+
+    document.getElementById('contact-add').addEventListener('click', () => {
+      if (contacts.length >= 5) { alert('Max 5 contacts. Delete one first.'); return; }
+      openContactModal();
+    });
+    document.getElementById('contact-cancel').addEventListener('click', closeContactModal);
+    document.getElementById('contact-save').addEventListener('click', () => {
+      const name = document.getElementById('contact-name').value.trim();
+      const role = document.getElementById('contact-role').value.trim();
+      const phone = document.getElementById('contact-phone').value.trim();
+      if (!name || !phone) { alert('Name + phone required'); return; }
+
+      if (editingContactId) {
+        const c = contacts.find(x => x.id === editingContactId);
+        if (c) { c.name = name; c.role = role; c.phone = phone; }
+      } else {
+        contacts.push({ id: Date.now(), name, role, phone });
+      }
+      saveContactsStore();
+      renderContacts();
+      closeContactModal();
+    });
+    document.getElementById('contact-list').addEventListener('click', (e) => {
+      const editBtn = e.target.closest('.contact-edit');
+      const delBtn = e.target.closest('.contact-del');
+      if (editBtn) {
+        const c = contacts.find(x => x.id === Number(editBtn.dataset.id));
+        if (c) openContactModal(c);
+      } else if (delBtn) {
+        if (!confirm('Delete this contact?')) return;
+        contacts = contacts.filter(x => x.id !== Number(delBtn.dataset.id));
+        saveContactsStore();
+        renderContacts();
+      }
+    });
+
+    loadContacts();
+    renderContacts();
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js');
   </script>
 </body>
