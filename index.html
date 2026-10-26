@@ -27,6 +27,7 @@
     .tile-sos      { background: linear-gradient(135deg, #FBD3A7, #F0B06E); color: #5E2E0A; }
     .tile-shelter svg{stroke:#1E3A5F}.tile-hospital svg{stroke:#6E1E1E}.tile-ngo svg{stroke:#1F4A2A}.tile-sos svg{stroke:#5E2E0A}
     @keyframes alertPulse { 0%,100% { background: radial-gradient(circle, #DC2626, #7F1D1D); } 50% { background: radial-gradient(circle, #B91C1C, #450A0A); } }
+    @keyframes landslidePulse { 0%,100% { background: radial-gradient(circle, #B45309, #78350F); } 50% { background: radial-gradient(circle, #92400E, #451A03); } }
     .mini-map { height: 140px; border-radius: 14px; overflow: hidden; cursor: pointer; }
     .alert-map { height: 180px; width: 100%; max-width: 420px; border-radius: 14px; overflow: hidden; margin: 12px auto; }
     .epicenter-dot { width: 18px; height: 18px; background: #DC2626; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 0 0 rgba(220,38,38,0.7); animation: epi 1.5s infinite; }
@@ -44,15 +45,19 @@
     .nav-item { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; font-weight: 600; color: #94A3B8; text-decoration: none; min-width: 56px; padding: 4px 0; }
     .nav-item.active { color: #DC2626; }
     .nav-item svg { width: 22px; height: 22px; }
-    #alert-overlay { z-index: 9999 !important; }
-    #alert-overlay.hidden { display: none !important; }
+    #alert-overlay, #landslide-overlay { z-index: 9999 !important; }
+    #alert-overlay.hidden, #landslide-overlay.hidden { display: none !important; }
     #alert-actions-menu { z-index: 10001 !important; }
+    #notif-panel     { z-index: 9998 !important; }
+    #notif-backdrop  { z-index: 9997 !important; }
+    #region-modal    { z-index: 9998 !important; }
+    .leaflet-pane, .leaflet-top, .leaflet-bottom { z-index: 1 !important; }
   </style>
 </head>
 <body class="bg-slate-50 min-h-screen">
 
-  <!-- Red alert overlay (ONE instance, ONE map) -->
-  <div id="alert-overlay" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-center text-white" style="animation: alertPulse 1.2s ease-in-out infinite;">
+  <!-- Red flood alert overlay -->
+  <div id="alert-overlay" class="hidden fixed inset-0 flex flex-col items-center justify-center p-6 text-center text-white" style="animation: alertPulse 1.2s ease-in-out infinite;">
     <div class="text-5xl mb-2">⚠️</div>
     <div class="brand-pill mb-2" style="background:rgba(255,255,255,.15);color:#FEE2E2"><span class="accent-dot"></span> ACTIVE EMERGENCY</div>
     <h2 id="alert-title" class="text-2xl font-extrabold">FLOOD ALERT</h2>
@@ -74,6 +79,27 @@
     </div>
   </div>
 
+  <!-- Landslide alert overlay (amber, hilly regions) -->
+  <div id="landslide-overlay" class="hidden fixed inset-0 flex flex-col items-center justify-center p-6 text-center text-white" style="background: radial-gradient(circle, #B45309, #78350F); animation: landslidePulse 1.5s ease-in-out infinite;">
+    <div class="text-5xl mb-2">⛰️</div>
+    <div class="brand-pill mb-2" style="background:rgba(255,255,255,.15);color:#FFEDD5"><span class="accent-dot" style="background:#F97316;box-shadow:0 0 8px #F97316"></span> LANDSLIDE RISK</div>
+    <h2 id="landslide-title" class="text-2xl font-extrabold">LANDSLIDE ALERT</h2>
+    <p id="landslide-body" class="text-sm max-w-sm mt-1">Heavy rainfall on steep slope — stay off ghats, highways.</p>
+    <p class="text-xs opacity-75 mb-3">Issued by GSI · State SDMA</p>
+    <div class="w-full max-w-xs bg-black/30 rounded-lg p-2.5 mb-3 flex items-center gap-2 text-xs">
+      <span>🌧️</span>
+      <div class="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+        <div id="landslide-meter" class="h-full bg-gradient-to-r from-yellow-400 to-red-600 rounded-full" style="width:85%"></div>
+      </div>
+      <span id="landslide-mm" class="font-extrabold">128mm</span>
+    </div>
+    <p class="text-[11px] opacity-90 mb-3">🟫 Slope danger · 🚨 Avoid ghat roads</p>
+    <div class="flex gap-3">
+      <a href="tel:1070" class="bg-white text-amber-800 font-bold px-5 py-3 rounded-xl shadow-lg">📞 Call 1070 SDMA</a>
+      <button id="landslide-dismiss" class="bg-white/20 border border-white/40 text-white font-bold px-5 py-3 rounded-xl">I'm safe</button>
+    </div>
+  </div>
+
   <!-- Notification backdrop + panel -->
   <div id="notif-backdrop" class="notif-backdrop"></div>
   <aside id="notif-panel" class="notif-panel">
@@ -88,11 +114,20 @@
     <div id="notif-list" class="flex-1 overflow-y-auto"></div>
   </aside>
 
+  <!-- Region picker modal -->
+  <div id="region-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-6">
+    <div class="bg-slate-900 text-white rounded-2xl max-w-sm w-full p-6">
+      <h2 class="font-bold text-lg mb-1">Pick your region</h2>
+      <p class="text-xs text-slate-400 mb-4">Data pack and alerts adapt automatically.</p>
+      <div id="region-list" class="space-y-2"></div>
+      <button id="region-close" class="w-full mt-4 bg-white/10 hover:bg-white/20 py-2 rounded-lg text-sm font-semibold">Cancel</button>
+    </div>
+  </div>
+
   <!-- Navy header -->
   <header class="bg-slate-900 text-white px-5 pt-8 pb-10 rounded-b-3xl">
     <div class="max-w-md mx-auto">
       <div class="flex items-center justify-between mb-4">
-        <!-- New Keystone + Dispatch logo lockup -->
         <div class="flex items-center gap-2">
           <svg width="26" height="26" viewBox="0 0 100 100" fill="none">
             <path d="M 10 44 L 50 10 L 90 44 L 90 90 L 10 90 Z" fill="#4FD1C5"/>
@@ -101,16 +136,28 @@
           </svg>
           <span class="logo-wm text-xl">Res<span style="color:#4FD1C5">Q</span>ing</span>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2">
+          <button id="region-btn" class="text-xs bg-white/10 hover:bg-white/20 px-2.5 py-1 rounded-full font-semibold">
+            <span id="region-flag">🏙️</span>
+            <span id="region-name">Delhi</span>
+            <span style="font-size:9px">▼</span>
+          </button>
           <button id="bell" class="bell text-slate-300 hover:text-white">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             <span id="bell-badge" class="bell-badge hidden">0</span>
           </button>
-          <span id="status-chip" class="text-xs text-slate-400">Loading...</span>
         </div>
       </div>
       <h1 class="text-2xl font-bold leading-tight mb-1">Find help nearby</h1>
       <p class="text-sm text-slate-400 mb-5">Works offline. Last synced <span id="last-sync">just now</span>.</p>
+      <div id="weather-chip" class="hidden items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2 mb-4 text-xs">
+        <span id="weather-icon" class="text-xl">🌤️</span>
+        <div class="flex-1 min-w-0">
+          <div id="weather-headline" class="font-semibold text-white truncate">Loading weather…</div>
+          <div id="weather-sub" class="text-[10px] text-slate-400">—</div>
+        </div>
+        <span id="weather-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full">SAFE</span>
+      </div>
       <div class="bg-white rounded-xl flex items-center gap-2 px-4 py-3 shadow-lg">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>
         <input id="searchBar" type="text" placeholder="Search by name, area, PIN..." class="bg-transparent flex-1 text-sm text-slate-900 outline-none placeholder-slate-400" />
@@ -235,8 +282,8 @@
       const banner = document.getElementById('offline-banner');
       const chip = document.getElementById('status-chip');
       const update = () => {
-        if (navigator.onLine) { banner.classList.add('hidden'); chip.textContent = '● Online'; }
-        else { banner.classList.remove('hidden'); chip.textContent = '✈ Offline'; }
+        if (navigator.onLine) { banner.classList.add('hidden'); if (chip) chip.textContent = '● Online'; }
+        else { banner.classList.remove('hidden'); if (chip) chip.textContent = '✈ Offline'; }
       };
       window.addEventListener('online', update); window.addEventListener('offline', update); update();
     }
@@ -328,8 +375,172 @@
       }, (err) => alert('Could not get location: ' + err.message));
     });
 
+    // === REGION SWITCHER ===
+    let regions = {};
+    let currentRegionId = localStorage.getItem('resqing-region') || 'delhi';
+
+    async function loadRegions() {
+      try {
+        const res = await fetch('data/regions.json');
+        regions = await res.json();
+        applyRegion(currentRegionId);
+      } catch (e) { console.warn('regions.json not found'); }
+    }
+
+    function applyRegion(id) {
+      const r = regions[id]; if (!r) return;
+      currentRegionId = id;
+      localStorage.setItem('resqing-region', id);
+      document.getElementById('region-flag').textContent = r.flag;
+      document.getElementById('region-name').textContent = r.name.split(' ')[0];
+      if (homeMap) homeMap.setView(r.center, 11);
+    }
+
+    function openRegionModal() {
+      const list = document.getElementById('region-list');
+      const badges = { safe: 'bg-emerald-500/20 text-emerald-300', high: 'bg-red-500/20 text-red-300' };
+      list.innerHTML = Object.entries(regions).map(([id, r]) => `
+        <div data-id="${id}" class="region-card bg-white/5 hover:bg-white/10 cursor-pointer border border-transparent ${id === currentRegionId ? 'border-teal-400 bg-teal-400/10' : ''} rounded-xl p-3 flex items-center gap-3">
+          <span class="text-2xl">${r.flag}</span>
+          <div class="flex-1 min-w-0">
+            <div class="font-bold text-sm">${r.name}</div>
+            <div class="text-xs text-slate-400">${r.risk}</div>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${badges[r.badge] || 'bg-slate-500/20 text-slate-300'}">${r.badge.toUpperCase()}</span>
+        </div>
+      `).join('');
+      document.getElementById('region-modal').classList.remove('hidden');
+    }
+
+    function closeRegionModal() {
+      document.getElementById('region-modal').classList.add('hidden');
+    }
+
+    document.getElementById('region-btn').addEventListener('click', openRegionModal);
+    document.getElementById('region-close').addEventListener('click', closeRegionModal);
+    document.getElementById('region-modal').addEventListener('click', (e) => {
+      if (e.target.id === 'region-modal') closeRegionModal();
+      const card = e.target.closest('.region-card');
+      if (card) {
+        applyRegion(card.dataset.id);
+        closeRegionModal();
+      }
+    });
+
+    // === WEATHER CHIP (Open-Meteo, no API key) ===
+    async function updateWeather() {
+      const chip = document.getElementById('weather-chip');
+      try {
+        const regionId = localStorage.getItem('resqing-region') || 'delhi';
+        const regionsRes = await fetch('data/regions.json');
+        const regions = await regionsRes.json();
+        const r = regions[regionId];
+        if (!r) return;
+        const [lat, lng] = r.center;
+
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}`
+          + `&current=temperature_2m,precipitation,weather_code`
+          + `&daily=precipitation_sum,weather_code&timezone=auto&forecast_days=2`;
+        const res = await fetch(url);
+        const d = await res.json();
+
+        const temp = Math.round(d.current.temperature_2m);
+        const code = d.current.weather_code;
+        const tomorrowMm = d.daily?.precipitation_sum?.[1] ?? 0;
+
+        let band = 'SAFE', badgeBg = 'bg-emerald-500/20 text-emerald-300', icon = '☀️', headline = `${temp}°C · Clear skies`;
+        if (tomorrowMm > 50) {
+          band = 'EXTREME'; badgeBg = 'bg-red-500/20 text-red-300'; icon = '⛈️';
+          headline = `Extreme rain · ${tomorrowMm.toFixed(0)}mm tomorrow`;
+          window.pushNotification({
+            title: `Extreme weather · ${r.name}`,
+            body: `${tomorrowMm.toFixed(0)}mm rain forecast — stay indoors, prepare emergency kit.`,
+            icon: '⛈️', color: 'bg-red-100 text-red-700'
+          });
+        } else if (tomorrowMm > 15) {
+          band = 'MODERATE'; badgeBg = 'bg-amber-500/20 text-amber-300'; icon = '🌧️';
+          headline = `Moderate rain · ${tomorrowMm.toFixed(0)}mm tomorrow`;
+        } else if ([45, 48].includes(code)) {
+          icon = '🌫️'; headline = `${temp}°C · Fog`;
+        } else if ([51,53,55,61,63,80].includes(code)) {
+          icon = '🌦️'; headline = `${temp}°C · Light rain`;
+        }
+
+        document.getElementById('weather-icon').textContent = icon;
+        document.getElementById('weather-headline').textContent = headline;
+        document.getElementById('weather-sub').textContent = `${r.name} · tomorrow ${tomorrowMm.toFixed(1)}mm`;
+        const badge = document.getElementById('weather-badge');
+        badge.textContent = band;
+        badge.className = `text-[9px] font-bold px-2 py-0.5 rounded-full ${badgeBg}`;
+        chip.classList.remove('hidden');
+        chip.classList.add('flex');
+      } catch (e) { console.warn('Weather fetch failed (likely offline):', e); }
+    }
+
+    // === LANDSLIDE ALERT ===
+    async function checkLandslideRisk() {
+      const regionId = localStorage.getItem('resqing-region') || 'delhi';
+      try {
+        const [regionsRes, slopeRes] = await Promise.all([
+          fetch('data/regions.json'),
+          fetch('data/slope-risk.json')
+        ]);
+        const regions = await regionsRes.json();
+        const slope = await slopeRes.json();
+        const r = regions[regionId];
+        const s = slope[regionId];
+        if (!r || !s) return;
+
+        const [lat, lng] = r.center;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}`
+          + `&hourly=precipitation&past_days=1&forecast_days=2&timezone=auto`;
+        const res = await fetch(url);
+        const d = await res.json();
+        const last24 = (d.hourly?.precipitation || []).slice(0, 24).reduce((a,b) => a + (b || 0), 0);
+        const next24 = (d.hourly?.precipitation || []).slice(24, 48).reduce((a,b) => a + (b || 0), 0);
+        const maxMm = Math.max(last24, next24);
+
+        if (maxMm >= s.threshold_mm) {
+          fireLandslideAlert(maxMm, s, r);
+        } else {
+          console.log(`Landslide check: ${maxMm.toFixed(0)}mm (threshold ${s.threshold_mm}mm) — safe`);
+        }
+      } catch (e) { console.warn('Landslide check failed:', e); }
+    }
+
+    function fireLandslideAlert(mm, slope, region) {
+      document.getElementById('landslide-title').textContent = `LANDSLIDE ALERT · ${region.name}`;
+      document.getElementById('landslide-body').textContent = slope.advice;
+      document.getElementById('landslide-mm').textContent = `${Math.round(mm)}mm`;
+      const pct = Math.min(100, Math.round((mm / slope.threshold_mm) * 100));
+      document.getElementById('landslide-meter').style.width = pct + '%';
+      document.getElementById('landslide-overlay').classList.remove('hidden');
+      if (navigator.vibrate) navigator.vibrate([200, 80, 200, 80, 400, 80, 400]);
+      window.pushNotification({
+        title: `Landslide risk · ${region.name}`,
+        body: `${Math.round(mm)}mm in 24h — ${slope.advice}`,
+        icon: '⛰️', color: 'bg-orange-100 text-orange-700'
+      });
+    }
+
+    document.getElementById('landslide-dismiss').addEventListener('click', () =>
+      document.getElementById('landslide-overlay').classList.add('hidden'));
+
+    // Demo: open DevTools Console → type triggerLandslide()
+    window.triggerLandslide = () => fireLandslideAlert(128, { threshold_mm: 100, advice: 'Mandi–Kullu stretch unstable. Avoid NH-21.' }, { name: 'Himachal Pradesh' });
+
+    // === BOOT ===
     document.getElementById('searchBar').addEventListener('input', handleSearch);
     setupTiles(); setupOffline(); renderNotifs(); loadData();
+    loadRegions();
+    updateWeather();
+    checkLandslideRisk();
+
+    // Re-run when user switches region
+    document.getElementById('region-btn').addEventListener('click', () => {
+      setTimeout(() => { updateWeather(); checkLandslideRisk(); }, 500);
+    });
+
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js');
   </script>
 </body>

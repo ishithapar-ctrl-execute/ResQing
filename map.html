@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#0F172A" />
-  <title>Map — ResQuing</title>
+  <title>Map — ResQing</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -82,6 +82,16 @@
     </a>
   </nav>
 
+  <!-- Floating legend -->
+  <div style="position:fixed;top:70px;right:12px;background:rgba(10,24,33,.9);color:white;
+              padding:8px 10px;border-radius:8px;font-size:10px;z-index:500;
+              border:1px solid rgba(255,255,255,.15);line-height:1.5">
+    <div style="font-weight:700;margin-bottom:4px;color:#4FD1C5">Legend</div>
+    <div><span style="display:inline-block;width:10px;height:10px;background:#2563EB;margin-right:4px;vertical-align:middle"></span>Flood zone</div>
+    <div><span style="display:inline-block;width:10px;height:10px;background:#4ADE80;margin-right:4px;vertical-align:middle"></span>Safe route</div>
+    <div><span style="display:inline-block;width:10px;height:10px;background:#DC2626;margin-right:4px;vertical-align:middle"></span>Blocked</div>
+  </div>
+
   <script>
     const COLOURS = { shelter:'#60A5FA', hospital:'#F87171', ngo:'#4ADE80', sos:'#FB923C' };
     const COORDS = {
@@ -91,105 +101,137 @@
       sos1:[28.6139,77.2090], sos2:[28.6145,77.2088]
     };
 
+    // Map file per region (lowercase filenames)
+    const REGION_FILES = {
+      delhi:       'data/delhi-flood.geojson',
+      himachal:    'data/himachal.geojson',
+      uttarakhand: 'data/uttarakhand.geojson',
+      kerala:      'data/kerala.geojson'
+    };
+
+    // Routes are specific to Delhi only (for now)
+    const DELHI_SAFE_ROUTES = [
+      { from: [28.6619, 77.2273], to: [28.6416, 77.2374] },
+      { from: [28.6820, 77.2232], to: [28.6619, 77.2273] }
+    ];
+    const DELHI_DANGER_ROUTES = [
+      { from: [28.6411, 77.2370], to: [28.6315, 77.2167], blocked: [28.6360, 77.2270] }
+    ];
+
     const map = L.map('map').setView([28.6139, 77.2090], 11);
-L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-  attribution: 'Tiles © Esri — Source: Esri, Earthstar Geographics',
-  maxZoom: 19
-}).addTo(map);
-// Load and draw flood zones (blue translucent polygon)
-fetch('data/delhi-flood.geojson')
-  .then(res => res.json())
-  .then(geojson => {
-    L.geoJSON(geojson, {
-      style: {
-        fillColor: '#2563EB',
-        fillOpacity: 0.45,
-        color: '#60A5FA',
-        weight: 2
-      }
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles © Esri — Source: Esri, Earthstar Geographics',
+      maxZoom: 19
     }).addTo(map);
-  })
-  .catch(err => console.warn('No flood overlay loaded:', err));
-async function loadMarkers() {
-  let entries = [];
-  try {
-    const db = await idb.openDB('resqing', 1);
-    entries = await db.getAll('entries');
-  } catch (err) { console.warn('DB:', err); }
 
-  // Build a label-style marker: coloured dot + name + meta
-  function labelIcon(e) {
-    const colour = COLOURS[e.type] || '#64748B';
-    const letter = { shelter:'S', hospital:'+', ngo:'N', sos:'!' }[e.type] || '?';
-    const meta   = e.capacity ? `${e.capacity} ppl` : (e.notes || '');
-    return L.divIcon({
-      className: '',
-      iconSize: [160, 36],
-      iconAnchor: [12, 18],
-      html: `
-        <div style="display:flex;align-items:center;gap:4px;font-family:Inter,sans-serif">
-          <div style="width:22px;height:22px;border-radius:50%;background:${colour};
-                      color:white;display:flex;align-items:center;justify-content:center;
-                      font-weight:700;font-size:12px;border:2px solid white;
-                      box-shadow:0 2px 4px rgba(0,0,0,.4);flex-shrink:0">${letter}</div>
-          <div style="background:rgba(10,24,33,.85);color:white;padding:3px 7px;
-                      border-radius:5px;font-size:11px;white-space:nowrap;
-                      border:1px solid rgba(255,255,255,.15);line-height:1.2;max-width:140px;
-                      overflow:hidden;text-overflow:ellipsis">
-            <span style="color:#4FD1C5;font-size:9px;letter-spacing:.04em;display:block;
-                         text-transform:uppercase;font-weight:700">${e.name}</span>
-            <span style="font-size:10px;color:#CBD5E1">${meta}</span>
-          </div>
-        </div>`
-    });
-  }
+    // === Centre map on selected region + load region's geojson ===
+    async function loadRegionOverlay() {
+      const regionId = localStorage.getItem('resqing-region') || 'delhi';
 
-  for (const e of entries) {
-    const lat = e.lat || (COORDS[e.id] && COORDS[e.id][0]);
-    const lng = e.lng || (COORDS[e.id] && COORDS[e.id][1]);
-    if (!lat || !lng) continue;
+      // Centre & update title
+      try {
+        const res = await fetch('data/regions.json');
+        const regions = await res.json();
+        const r = regions[regionId];
+        if (r) {
+          map.setView(r.center, r.zoom || 10);
+          const h = document.querySelector('header h1');
+          if (h) h.textContent = `Map · ${r.name}`;
+        }
+      } catch (e) { console.warn('regions.json not loaded:', e); }
 
-    L.marker([lat, lng], { icon: labelIcon(e) })
-      .addTo(map)
-      .bindPopup(`
-        <div style="min-width:180px">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748B;font-weight:700">${e.type}</div>
-          <div style="font-weight:700;margin:2px 0 4px;font-size:14px">${e.name}</div>
-          <div style="font-size:12px;color:#475569;margin-bottom:8px">${e.address || ''}</div>
-          <a href="tel:${e.phone}" style="display:inline-block;background:#10B981;color:white;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none">📞 Call ${e.phone}</a>
-        </div>`);
-  }
+      // Draw region's flood/risk zone
+      const file = REGION_FILES[regionId];
+      if (!file) return;
+      try {
+        const res = await fetch(file);
+        const geojson = await res.json();
+        L.geoJSON(geojson, {
+          style: {
+            fillColor: '#2563EB',
+            fillOpacity: 0.45,
+            color: '#60A5FA',
+            weight: 2
+          }
+        }).addTo(map).bindTooltip('Risk zone');
+      } catch (e) { console.warn('Region geojson failed:', file, e); }
+    }
 
-  // === SAFE + DANGER routes ===
-  const safeRoutes = [
-    { from: [28.6619, 77.2273], to: [28.6416, 77.2374] },
-    { from: [28.6820, 77.2232], to: [28.6619, 77.2273] }
-  ];
-  for (const r of safeRoutes) {
-    L.polyline([r.from, r.to], {
-      color: '#4ADE80', weight: 4, dashArray: '8 6', opacity: 0.9
-    }).addTo(map).bindTooltip('Safe route');
-  }
+    async function loadMarkers() {
+      let entries = [];
+      try {
+        const db = await idb.openDB('resqing', 1);
+        entries = await db.getAll('entries');
+      } catch (err) { console.warn('DB:', err); }
 
-  const dangerRoutes = [
-    { from: [28.6411, 77.2370], to: [28.6315, 77.2167], blocked: [28.6360, 77.2270] }
-  ];
-  for (const r of dangerRoutes) {
-    L.polyline([r.from, r.to], {
-      color: '#DC2626', weight: 4, dashArray: '8 6', opacity: 0.9
-    }).addTo(map).bindTooltip('⚠ Flooded — avoid');
-    L.marker(r.blocked, {
-      icon: L.divIcon({
-        className: '',
-        iconSize: [24, 24], iconAnchor: [12, 12],
-        html: `<div style="width:24px;height:24px;background:#DC2626;color:white;
-                           border-radius:50%;display:flex;align-items:center;
-                           justify-content:center;font-weight:800;font-size:14px;
-                           border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.4)">✕</div>`
-      })
-    }).addTo(map).bindTooltip('Bridge blocked by flood');
-  }
-}
+      // Build a label-style marker: coloured dot + name + meta
+      function labelIcon(e) {
+        const colour = COLOURS[e.type] || '#64748B';
+        const letter = { shelter:'S', hospital:'+', ngo:'N', sos:'!' }[e.type] || '?';
+        const meta   = e.capacity ? `${e.capacity} ppl` : (e.notes || '');
+        return L.divIcon({
+          className: '',
+          iconSize: [160, 36],
+          iconAnchor: [12, 18],
+          html: `
+            <div style="display:flex;align-items:center;gap:4px;font-family:Inter,sans-serif">
+              <div style="width:22px;height:22px;border-radius:50%;background:${colour};
+                          color:white;display:flex;align-items:center;justify-content:center;
+                          font-weight:700;font-size:12px;border:2px solid white;
+                          box-shadow:0 2px 4px rgba(0,0,0,.4);flex-shrink:0">${letter}</div>
+              <div style="background:rgba(10,24,33,.85);color:white;padding:3px 7px;
+                          border-radius:5px;font-size:11px;white-space:nowrap;
+                          border:1px solid rgba(255,255,255,.15);line-height:1.2;max-width:140px;
+                          overflow:hidden;text-overflow:ellipsis">
+                <span style="color:#4FD1C5;font-size:9px;letter-spacing:.04em;display:block;
+                             text-transform:uppercase;font-weight:700">${e.name}</span>
+                <span style="font-size:10px;color:#CBD5E1">${meta}</span>
+              </div>
+            </div>`
+        });
+      }
+
+      for (const e of entries) {
+        const lat = e.lat || (COORDS[e.id] && COORDS[e.id][0]);
+        const lng = e.lng || (COORDS[e.id] && COORDS[e.id][1]);
+        if (!lat || !lng) continue;
+
+        L.marker([lat, lng], { icon: labelIcon(e) })
+          .addTo(map)
+          .bindPopup(`
+            <div style="min-width:180px">
+              <div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748B;font-weight:700">${e.type}</div>
+              <div style="font-weight:700;margin:2px 0 4px;font-size:14px">${e.name}</div>
+              <div style="font-size:12px;color:#475569;margin-bottom:8px">${e.address || ''}</div>
+              <a href="tel:${e.phone}" style="display:inline-block;background:#10B981;color:white;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none">📞 Call ${e.phone}</a>
+            </div>`);
+      }
+
+      // Routes — only for Delhi region
+      const regionId = localStorage.getItem('resqing-region') || 'delhi';
+      if (regionId === 'delhi') {
+        for (const r of DELHI_SAFE_ROUTES) {
+          L.polyline([r.from, r.to], {
+            color: '#4ADE80', weight: 4, dashArray: '8 6', opacity: 0.9
+          }).addTo(map).bindTooltip('Safe route');
+        }
+        for (const r of DELHI_DANGER_ROUTES) {
+          L.polyline([r.from, r.to], {
+            color: '#DC2626', weight: 4, dashArray: '8 6', opacity: 0.9
+          }).addTo(map).bindTooltip('⚠ Flooded — avoid');
+          L.marker(r.blocked, {
+            icon: L.divIcon({
+              className: '',
+              iconSize: [24, 24], iconAnchor: [12, 12],
+              html: `<div style="width:24px;height:24px;background:#DC2626;color:white;
+                                 border-radius:50%;display:flex;align-items:center;
+                                 justify-content:center;font-weight:800;font-size:14px;
+                                 border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.4)">✕</div>`
+            })
+          }).addTo(map).bindTooltip('Bridge blocked by flood');
+        }
+      }
+    }
 
     let epicenterMarker = null, dangerZone = null;
     function placeEpicenter(lat, lng, accuracy) {
@@ -212,17 +254,12 @@ async function loadMarkers() {
     }
     document.getElementById('recenter').addEventListener('click', locateUser);
 
+    loadRegionOverlay();
     loadMarkers();
-    locateUser();
+    // Only auto-locate if region is Delhi (otherwise would jump away from Himachal etc.)
+    if ((localStorage.getItem('resqing-region') || 'delhi') === 'delhi') locateUser();
+
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js');
   </script>
-  <div style="position:fixed;top:70px;right:12px;background:rgba(10,24,33,.9);color:white;
-            padding:8px 10px;border-radius:8px;font-size:10px;z-index:500;
-            border:1px solid rgba(255,255,255,.15);line-height:1.5">
-  <div style="font-weight:700;margin-bottom:4px;color:#4FD1C5">Legend</div>
-  <div><span style="display:inline-block;width:10px;height:10px;background:#2563EB;margin-right:4px;vertical-align:middle"></span>Flood zone</div>
-  <div><span style="display:inline-block;width:10px;height:10px;background:#4ADE80;margin-right:4px;vertical-align:middle"></span>Safe route</div>
-  <div><span style="display:inline-block;width:10px;height:10px;background:#DC2626;margin-right:4px;vertical-align:middle"></span>Blocked</div>
-</div>
 </body>
 </html>
