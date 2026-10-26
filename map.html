@@ -1,265 +1,139 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#0F172A" />
-  <title>Map — ResQing</title>
-
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/idb@8.0.0/build/umd.js"></script>
-  <link rel="manifest" href="manifest.json" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-
-  <style>
-    html, body { height: 100%; margin: 0; font-family: 'Inter', system-ui, sans-serif; }
-    body { display: flex; flex-direction: column; background: #0F172A; padding-bottom: 70px; }
-    #map { flex: 1; min-height: 300px; }
-    .legend { display: flex; gap: 12px; justify-content: center; font-size: 11px; color: #CBD5E1; padding: 8px; flex-wrap: wrap; background: #0F172A; }
-    .legend .dot { width: 10px; height: 10px; border-radius: 999px; display: inline-block; margin-right: 4px; vertical-align: middle; }
-    .leaflet-popup-content { font-family: 'Inter', system-ui, sans-serif; margin: 10px 12px; }
-
-    .epicenter {
-      width: 20px; height: 20px; background: #DC2626; border: 3px solid white;
-      border-radius: 50%; box-shadow: 0 0 0 0 rgba(220,38,38,0.7);
-      animation: epi 1.5s infinite;
-    }
-    @keyframes epi {
-      0%   { box-shadow: 0 0 0 0 rgba(220,38,38,0.7); }
-      70%  { box-shadow: 0 0 0 20px rgba(220,38,38,0); }
-      100% { box-shadow: 0 0 0 0 rgba(220,38,38,0); }
-    }
-
-    .bottom-nav {
-      position: fixed; bottom: 0; left: 0; right: 0;
-      background: white; border-top: 1px solid #E2E8F0;
-      display: flex; justify-content: space-around; padding: 8px 0 10px;
-      z-index: 999; box-shadow: 0 -2px 10px rgba(15,23,42,0.04);
-      padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-    }
-    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; font-weight: 600; color: #94A3B8; text-decoration: none; min-width: 56px; padding: 4px 0; }
-    .nav-item.active { color: #DC2626; }
-    .nav-item svg { width: 22px; height: 22px; }
-  </style>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><meta name="theme-color" content="#0F172A"/>
+<title>Map — ResQing</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css"/>
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/idb@8.0.0/build/umd.js"></script>
+<link rel="manifest" href="manifest.json"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+html,body{height:100%;margin:0;font-family:'Inter',sans-serif}
+body{display:flex;flex-direction:column;background:#0F172A;padding-bottom:70px}
+#map{flex:1;min-height:300px}
+.legend{display:flex;gap:12px;justify-content:center;font-size:11px;color:#CBD5E1;padding:8px;flex-wrap:wrap;background:#0F172A}
+.legend .dot{width:10px;height:10px;border-radius:999px;display:inline-block;margin-right:4px;vertical-align:middle}
+.epicenter{width:20px;height:20px;background:#DC2626;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 0 rgba(220,38,38,.7);animation:epi 1.5s infinite}
+@keyframes epi{0%{box-shadow:0 0 0 0 rgba(220,38,38,.7)}70%{box-shadow:0 0 0 20px rgba(220,38,38,0)}100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #E2E8F0;display:flex;justify-content:space-around;padding:8px 0 10px;z-index:999}
+.nav-item{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;font-weight:600;color:#94A3B8;text-decoration:none;min-width:56px;padding:4px 0}
+.nav-item.active{color:#DC2626}
+.nav-item svg{width:22px;height:22px}
+.leaflet-routing-container{background:rgba(10,24,33,.95)!important;color:#fff!important;border-radius:12px!important;max-width:280px!important;font-size:11px!important;padding:10px!important}
+.leaflet-routing-alt h2{font-size:12px!important;color:#4FD1C5!important}
+.leaflet-routing-alt table{color:#E8F3F1!important;font-size:10px!important}
+</style>
 </head>
 <body>
+<header class="bg-slate-900 text-white flex items-center justify-between px-4 py-3">
+<a href="index.html" class="text-sm bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg font-semibold">← Back</a>
+<h1 class="text-sm font-bold">Flood map</h1>
+<button id="recenter" class="text-xs bg-orange-500 hover:bg-orange-400 px-3 py-1.5 rounded-lg font-bold">📍 Me</button>
+</header>
+<div id="map"></div>
+<div class="legend">
+<span><span class="dot" style="background:#DC2626;box-shadow:0 0 6px #DC2626"></span>You</span>
+<span><span class="dot" style="background:#60A5FA"></span>Shelter</span>
+<span><span class="dot" style="background:#F87171"></span>Hospital</span>
+<span><span class="dot" style="background:#4ADE80"></span>NGO</span>
+<span><span class="dot" style="background:#FB923C"></span>SOS</span>
+</div>
+<div style="position:fixed;top:70px;right:12px;background:rgba(10,24,33,.9);color:#fff;padding:8px 10px;border-radius:8px;font-size:10px;z-index:500;line-height:1.5">
+<div style="font-weight:700;margin-bottom:4px;color:#4FD1C5">Legend</div>
+<div><span style="display:inline-block;width:10px;height:10px;background:#2563EB;margin-right:4px;vertical-align:middle"></span>Flood zone</div>
+<div><span style="display:inline-block;width:10px;height:10px;background:#4ADE80;margin-right:4px;vertical-align:middle"></span>Safe route</div>
+<div><span style="display:inline-block;width:10px;height:10px;background:#DC2626;margin-right:4px;vertical-align:middle"></span>Blocked</div>
+</div>
+<nav class="bottom-nav">
+<a href="index.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>Home</a>
+<a href="map.html" class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2L2 5v17l7-3 6 3 7-3V2l-7 3-6-3z"/></svg>Map</a>
+<a href="index.html#alerts" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg>Alerts</a>
+<a href="index.html#sos" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>SOS</a>
+</nav>
+<script>
+const COLOURS = { shelter:'#60A5FA', hospital:'#F87171', ngo:'#4ADE80', sos:'#FB923C' };
+const COORDS = { s1:[28.6619,77.2273], s2:[28.6820,77.2232], h1:[28.6416,77.2374], h2:[28.6411,77.2370], n1:[28.5355,77.2910], n2:[28.6315,77.2167], sos1:[28.6139,77.2090], sos2:[28.6145,77.2088] };
+const REGION_FILES = { delhi:'data/delhi-flood.geojson', himachal:'data/himachal.geojson', uttarakhand:'data/uttarakhand.geojson', kerala:'data/kerala.geojson' };
 
-  <header class="bg-slate-900 text-white flex items-center justify-between px-4 py-3">
-    <a href="index.html" class="text-sm bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg font-semibold">← Back</a>
-    <h1 class="text-sm font-bold">Flood map · Delhi</h1>
-    <button id="recenter" class="text-xs bg-orange-500 hover:bg-orange-400 px-3 py-1.5 rounded-lg font-bold">📍 Me</button>
-  </header>
+const map = L.map('map').setView([28.6139, 77.2090], 11);
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri', maxZoom: 19 }).addTo(map);
 
-  <div id="map"></div>
+let userLatLng = null, currentRoute = null;
+function routeTo(destLat, destLng, destName) {
+  if (!userLatLng) {
+    navigator.geolocation?.getCurrentPosition(
+      (pos) => { userLatLng = L.latLng(pos.coords.latitude, pos.coords.longitude); drawRoute(destLat, destLng, destName); },
+      () => alert('Please allow location')
+    ); return;
+  }
+  drawRoute(destLat, destLng, destName);
+}
+function drawRoute(destLat, destLng, destName) {
+  if (currentRoute) map.removeControl(currentRoute);
+  currentRoute = L.Routing.control({
+    waypoints: [userLatLng, L.latLng(destLat, destLng)],
+    routeWhileDragging: false, show: true, collapsible: true, addWaypoints: false, draggableWaypoints: false, fitSelectedRoutes: true,
+    lineOptions: { styles: [{ color: '#4ADE80', weight: 6, opacity: 0.9 }, { color: 'white', weight: 2, opacity: 1 }] },
+    createMarker: (i, wp) => L.marker(wp.latLng, { icon: L.divIcon({ className: '', iconSize: [28, 28], iconAnchor: [14, 14], html: i === 0 ? `<div style="width:24px;height:24px;background:#10B981;border:3px solid white;border-radius:50%;"></div>` : `<div style="width:28px;height:28px;background:#2563EB;color:white;border:3px solid white;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);font-size:14px">🏠</span></div>` }) }).bindTooltip(i === 0 ? 'You' : destName),
+    router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' })
+  }).addTo(map);
+}
+window.routeTo = routeTo;
 
-  <div class="legend">
-    <span><span class="dot" style="background:#DC2626;box-shadow:0 0 6px #DC2626"></span>You (epicenter)</span>
-    <span><span class="dot" style="background:#60A5FA"></span>Shelter</span>
-    <span><span class="dot" style="background:#F87171"></span>Hospital</span>
-    <span><span class="dot" style="background:#4ADE80"></span>NGO</span>
-    <span><span class="dot" style="background:#FB923C"></span>SOS</span>
-  </div>
+async function loadRegionOverlay() {
+  const id = localStorage.getItem('resqing-region') || 'delhi';
+  try {
+    const res = await fetch('data/regions.json'); const regs = await res.json(); const r = regs[id];
+    if (r) { map.setView(r.center, r.zoom || 10); const h = document.querySelector('header h1'); if (h) h.textContent = `Map · ${r.name}`; }
+  } catch(e){}
+  try {
+    const res = await fetch(REGION_FILES[id]); const g = await res.json();
+    L.geoJSON(g, { style: { fillColor: '#2563EB', fillOpacity: 0.45, color: '#60A5FA', weight: 2 } }).addTo(map);
+  } catch(e){}
+}
 
-  <!-- Bottom nav -->
-  <nav class="bottom-nav">
-    <a href="index.html" class="nav-item">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
-      Home
-    </a>
-    <a href="map.html" class="nav-item active">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2L2 5v17l7-3 6 3 7-3V2l-7 3-6-3z"/><path d="M9 2v17M15 5v17"/></svg>
-      Map
-    </a>
-    <a href="index.html#alerts" class="nav-item">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      Alerts
-    </a>
-    <a href="index.html#sos" class="nav-item">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-      SOS
-    </a>
-  </nav>
-
-  <!-- Floating legend -->
-  <div style="position:fixed;top:70px;right:12px;background:rgba(10,24,33,.9);color:white;
-              padding:8px 10px;border-radius:8px;font-size:10px;z-index:500;
-              border:1px solid rgba(255,255,255,.15);line-height:1.5">
-    <div style="font-weight:700;margin-bottom:4px;color:#4FD1C5">Legend</div>
-    <div><span style="display:inline-block;width:10px;height:10px;background:#2563EB;margin-right:4px;vertical-align:middle"></span>Flood zone</div>
-    <div><span style="display:inline-block;width:10px;height:10px;background:#4ADE80;margin-right:4px;vertical-align:middle"></span>Safe route</div>
-    <div><span style="display:inline-block;width:10px;height:10px;background:#DC2626;margin-right:4px;vertical-align:middle"></span>Blocked</div>
-  </div>
-
-  <script>
-    const COLOURS = { shelter:'#60A5FA', hospital:'#F87171', ngo:'#4ADE80', sos:'#FB923C' };
-    const COORDS = {
-      s1:[28.6619,77.2273], s2:[28.6820,77.2232],
-      h1:[28.6416,77.2374], h2:[28.6411,77.2370],
-      n1:[28.5355,77.2910], n2:[28.6315,77.2167],
-      sos1:[28.6139,77.2090], sos2:[28.6145,77.2088]
-    };
-
-    // Map file per region (lowercase filenames)
-    const REGION_FILES = {
-      delhi:       'data/delhi-flood.geojson',
-      himachal:    'data/himachal.geojson',
-      uttarakhand: 'data/uttarakhand.geojson',
-      kerala:      'data/kerala.geojson'
-    };
-
-    // Routes are specific to Delhi only (for now)
-    const DELHI_SAFE_ROUTES = [
-      { from: [28.6619, 77.2273], to: [28.6416, 77.2374] },
-      { from: [28.6820, 77.2232], to: [28.6619, 77.2273] }
-    ];
-    const DELHI_DANGER_ROUTES = [
-      { from: [28.6411, 77.2370], to: [28.6315, 77.2167], blocked: [28.6360, 77.2270] }
-    ];
-
-    const map = L.map('map').setView([28.6139, 77.2090], 11);
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles © Esri — Source: Esri, Earthstar Geographics',
-      maxZoom: 19
-    }).addTo(map);
-
-    // === Centre map on selected region + load region's geojson ===
-    async function loadRegionOverlay() {
-      const regionId = localStorage.getItem('resqing-region') || 'delhi';
-
-      // Centre & update title
-      try {
-        const res = await fetch('data/regions.json');
-        const regions = await res.json();
-        const r = regions[regionId];
-        if (r) {
-          map.setView(r.center, r.zoom || 10);
-          const h = document.querySelector('header h1');
-          if (h) h.textContent = `Map · ${r.name}`;
-        }
-      } catch (e) { console.warn('regions.json not loaded:', e); }
-
-      // Draw region's flood/risk zone
-      const file = REGION_FILES[regionId];
-      if (!file) return;
-      try {
-        const res = await fetch(file);
-        const geojson = await res.json();
-        L.geoJSON(geojson, {
-          style: {
-            fillColor: '#2563EB',
-            fillOpacity: 0.45,
-            color: '#60A5FA',
-            weight: 2
-          }
-        }).addTo(map).bindTooltip('Risk zone');
-      } catch (e) { console.warn('Region geojson failed:', file, e); }
+async function loadMarkers() {
+  let entries = [];
+  try { const db = await idb.openDB('resqing', 1); entries = await db.getAll('entries'); } catch(e){}
+  function labelIcon(e) {
+    const col = COLOURS[e.type] || '#64748B'; const l = { shelter:'S', hospital:'+', ngo:'N', sos:'!' }[e.type] || '?';
+    return L.divIcon({ className: '', iconSize: [160, 36], iconAnchor: [12, 18], html: `<div style="display:flex;align-items:center;gap:4px"><div style="width:22px;height:22px;border-radius:50%;background:${col};color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;border:2px solid white">${l}</div><div style="background:rgba(10,24,33,.85);color:white;padding:3px 7px;border-radius:5px;font-size:10px;max-width:140px"><span style="color:#4FD1C5;font-size:9px;display:block;font-weight:700">${e.name}</span><span style="font-size:10px;color:#CBD5E1">${e.capacity ? e.capacity+' ppl' : (e.notes || '')}</span></div></div>` });
+  }
+  for (const e of entries) {
+    const lat = e.lat || COORDS[e.id]?.[0]; const lng = e.lng || COORDS[e.id]?.[1]; if (!lat || !lng) continue;
+    L.marker([lat, lng], { icon: labelIcon(e) }).addTo(map).bindPopup(`<div style="min-width:200px"><div style="font-size:10px;text-transform:uppercase;color:#64748B;font-weight:700">${e.type}</div><div style="font-weight:700;margin:2px 0 4px;font-size:14px">${e.name}</div><div style="font-size:12px;color:#475569;margin-bottom:8px">${e.address || ''}</div><div style="display:flex;gap:6px"><a href="tel:${e.phone}" style="flex:1;background:#10B981;color:white;padding:6px 10px;border-radius:8px;font-size:11px;font-weight:600;text-decoration:none;text-align:center">📞 Call</a><button onclick="window.routeTo(${lat},${lng},'${e.name.replace(/'/g,"\\'")}'); this.closest('.leaflet-popup').querySelector('.leaflet-popup-close-button').click();" style="flex:1;background:#2563EB;color:white;padding:6px 10px;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">🧭 Route</button></div></div>`);
+  }
+  if ((localStorage.getItem('resqing-region') || 'delhi') === 'delhi') {
+    const safe = [{from:[28.6619,77.2273],to:[28.6416,77.2374]},{from:[28.6820,77.2232],to:[28.6619,77.2273]}];
+    for (const r of safe) L.polyline([r.from, r.to], { color: '#4ADE80', weight: 4, dashArray: '8 6' }).addTo(map).bindTooltip('Safe route');
+    const danger = [{from:[28.6411,77.2370],to:[28.6315,77.2167],blocked:[28.6360,77.2270]}];
+    for (const r of danger) {
+      L.polyline([r.from, r.to], { color: '#DC2626', weight: 4, dashArray: '8 6' }).addTo(map).bindTooltip('⚠ Flooded');
+      L.marker(r.blocked, { icon: L.divIcon({ iconSize: [24, 24], iconAnchor: [12, 12], html: `<div style="width:24px;height:24px;background:#DC2626;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;border:2px solid white">✕</div>` }) }).addTo(map).bindTooltip('Bridge blocked');
     }
+  }
+}
 
-    async function loadMarkers() {
-      let entries = [];
-      try {
-        const db = await idb.openDB('resqing', 1);
-        entries = await db.getAll('entries');
-      } catch (err) { console.warn('DB:', err); }
-
-      // Build a label-style marker: coloured dot + name + meta
-      function labelIcon(e) {
-        const colour = COLOURS[e.type] || '#64748B';
-        const letter = { shelter:'S', hospital:'+', ngo:'N', sos:'!' }[e.type] || '?';
-        const meta   = e.capacity ? `${e.capacity} ppl` : (e.notes || '');
-        return L.divIcon({
-          className: '',
-          iconSize: [160, 36],
-          iconAnchor: [12, 18],
-          html: `
-            <div style="display:flex;align-items:center;gap:4px;font-family:Inter,sans-serif">
-              <div style="width:22px;height:22px;border-radius:50%;background:${colour};
-                          color:white;display:flex;align-items:center;justify-content:center;
-                          font-weight:700;font-size:12px;border:2px solid white;
-                          box-shadow:0 2px 4px rgba(0,0,0,.4);flex-shrink:0">${letter}</div>
-              <div style="background:rgba(10,24,33,.85);color:white;padding:3px 7px;
-                          border-radius:5px;font-size:11px;white-space:nowrap;
-                          border:1px solid rgba(255,255,255,.15);line-height:1.2;max-width:140px;
-                          overflow:hidden;text-overflow:ellipsis">
-                <span style="color:#4FD1C5;font-size:9px;letter-spacing:.04em;display:block;
-                             text-transform:uppercase;font-weight:700">${e.name}</span>
-                <span style="font-size:10px;color:#CBD5E1">${meta}</span>
-              </div>
-            </div>`
-        });
-      }
-
-      for (const e of entries) {
-        const lat = e.lat || (COORDS[e.id] && COORDS[e.id][0]);
-        const lng = e.lng || (COORDS[e.id] && COORDS[e.id][1]);
-        if (!lat || !lng) continue;
-
-        L.marker([lat, lng], { icon: labelIcon(e) })
-          .addTo(map)
-          .bindPopup(`
-            <div style="min-width:180px">
-              <div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748B;font-weight:700">${e.type}</div>
-              <div style="font-weight:700;margin:2px 0 4px;font-size:14px">${e.name}</div>
-              <div style="font-size:12px;color:#475569;margin-bottom:8px">${e.address || ''}</div>
-              <a href="tel:${e.phone}" style="display:inline-block;background:#10B981;color:white;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none">📞 Call ${e.phone}</a>
-            </div>`);
-      }
-
-      // Routes — only for Delhi region
-      const regionId = localStorage.getItem('resqing-region') || 'delhi';
-      if (regionId === 'delhi') {
-        for (const r of DELHI_SAFE_ROUTES) {
-          L.polyline([r.from, r.to], {
-            color: '#4ADE80', weight: 4, dashArray: '8 6', opacity: 0.9
-          }).addTo(map).bindTooltip('Safe route');
-        }
-        for (const r of DELHI_DANGER_ROUTES) {
-          L.polyline([r.from, r.to], {
-            color: '#DC2626', weight: 4, dashArray: '8 6', opacity: 0.9
-          }).addTo(map).bindTooltip('⚠ Flooded — avoid');
-          L.marker(r.blocked, {
-            icon: L.divIcon({
-              className: '',
-              iconSize: [24, 24], iconAnchor: [12, 12],
-              html: `<div style="width:24px;height:24px;background:#DC2626;color:white;
-                                 border-radius:50%;display:flex;align-items:center;
-                                 justify-content:center;font-weight:800;font-size:14px;
-                                 border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.4)">✕</div>`
-            })
-          }).addTo(map).bindTooltip('Bridge blocked by flood');
-        }
-      }
-    }
-
-    let epicenterMarker = null, dangerZone = null;
-    function placeEpicenter(lat, lng, accuracy) {
-      if (epicenterMarker) epicenterMarker.remove();
-      if (dangerZone)     dangerZone.remove();
-      const icon = L.divIcon({ className: '', iconSize: [26, 26], iconAnchor: [13, 13], html: '<div class="epicenter"></div>' });
-      epicenterMarker = L.marker([lat, lng], { icon }).addTo(map)
-        .bindPopup(`<b>You are here</b><br><span style="font-size:11px;color:#64748B">Flood epicenter · accuracy ${Math.round(accuracy)}m</span>`).openPopup();
-      dangerZone = L.circle([lat, lng], { radius: 2000, color: '#DC2626', weight: 2, fillColor: '#DC2626', fillOpacity: 0.08, dashArray: '6 6' }).addTo(map);
-      map.setView([lat, lng], 13);
-    }
-
-    function locateUser() {
-      if (!navigator.geolocation) { alert('Your browser does not support location.'); return; }
-      navigator.geolocation.getCurrentPosition(
-        (pos) => placeEpicenter(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy),
-        (err) => console.warn('Location denied:', err.message),
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    }
-    document.getElementById('recenter').addEventListener('click', locateUser);
-
-    loadRegionOverlay();
-    loadMarkers();
-    // Only auto-locate if region is Delhi (otherwise would jump away from Himachal etc.)
-    if ((localStorage.getItem('resqing-region') || 'delhi') === 'delhi') locateUser();
-
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js');
-  </script>
+let epicenterMarker = null;
+function placeEpicenter(lat, lng, accuracy) {
+  userLatLng = L.latLng(lat, lng);
+  if (epicenterMarker) epicenterMarker.remove();
+  const icon = L.divIcon({ className: '', iconSize: [26, 26], iconAnchor: [13, 13], html: '<div class="epicenter"></div>' });
+  epicenterMarker = L.marker([lat, lng], { icon }).addTo(map).bindPopup(`<b>You are here</b><br>Accuracy ${Math.round(accuracy)}m`).openPopup();
+  L.circle([lat, lng], { radius: 2000, color: '#DC2626', weight: 2, fillColor: '#DC2626', fillOpacity: 0.08, dashArray: '6 6' }).addTo(map);
+  map.setView([lat, lng], 13);
+}
+function locateUser() {
+  navigator.geolocation?.getCurrentPosition((pos) => placeEpicenter(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy), () => {}, { enableHighAccuracy: true, timeout: 10000 });
+}
+document.getElementById('recenter').addEventListener('click', locateUser);
+loadRegionOverlay(); loadMarkers();
+if ((localStorage.getItem('resqing-region') || 'delhi') === 'delhi') locateUser();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js');
+</script>
 </body>
 </html>

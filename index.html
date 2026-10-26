@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0F172A" />
   <title>ResQing — Find help, even when the network disappears</title>
-
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@1,500;1,600;1,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -13,7 +12,6 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="manifest" href="manifest.json" />
-
   <style>
     body { font-family: 'Inter', system-ui, sans-serif; padding-bottom: 70px; }
     .logo-wm { font-family: 'Fraunces', Georgia, serif; font-style: italic; font-weight: 600; letter-spacing: -0.01em; }
@@ -48,15 +46,48 @@
     #alert-overlay, #landslide-overlay { z-index: 9999 !important; }
     #alert-overlay.hidden, #landslide-overlay.hidden { display: none !important; }
     #alert-actions-menu { z-index: 10001 !important; }
-    #notif-panel     { z-index: 9998 !important; }
-    #notif-backdrop  { z-index: 9997 !important; }
-    #region-modal    { z-index: 9998 !important; }
+    #notif-panel { z-index: 9998 !important; }
+    #notif-backdrop { z-index: 9997 !important; }
+    #region-modal { z-index: 9998 !important; }
     .leaflet-pane, .leaflet-top, .leaflet-bottom { z-index: 1 !important; }
+    /* SPLASH */
+    #splash { position: fixed; inset: 0; background: radial-gradient(ellipse at 50% 40%, #0E2E42 0%, #061826 70%); z-index: 100000; display: flex; flex-direction: column; align-items: center; justify-content: center; animation: splashOut 0.5s ease 1.6s forwards; }
+    #splash.gone { display: none; }
+    @keyframes splashOut { to { opacity: 0; visibility: hidden; } }
+    .splash-logo { display: inline-flex; align-items: baseline; gap: 2px; font-family: 'Fraunces', Georgia, serif; font-style: italic; font-weight: 600; font-size: clamp(50px, 11vw, 90px); color: white; animation: splashZoom 0.6s cubic-bezier(.2,.8,.3,1) 1.1s forwards; }
+    @keyframes splashZoom { to { transform: scale(0.5); opacity: 0; } }
+    .splash-letter { display: inline-block; opacity: 0; transform: translateX(var(--from, 0)) scale(0.6); filter: blur(4px); animation: splashLetter 0.55s cubic-bezier(.2,.85,.3,1.1) forwards; animation-delay: var(--delay, 0ms); }
+    @keyframes splashLetter { 60% { opacity: 1; filter: blur(0); } 100% { opacity: 1; transform: translateX(0) scale(1); filter: blur(0); } }
+    .splash-qhouse { width: 1.1em; height: 1.1em; animation: splashHouse 0.6s cubic-bezier(.2,.9,.3,1.2) both; filter: drop-shadow(0 0 12px rgba(126,227,216,0.6)); }
+    @keyframes splashHouse { 0% { opacity: 0; transform: scale(0.3) rotate(-8deg); } 60% { opacity: 1; transform: scale(1.08) rotate(2deg); } 100% { opacity: 1; transform: scale(1) rotate(0); } }
+    .splash-tagline { font-family: 'Inter', sans-serif; margin-top: 20px; font-size: 11px; letter-spacing: 0.3em; color: #4FD1C5; font-weight: 600; text-transform: uppercase; opacity: 0; animation: splashFade 0.5s ease 0.9s forwards; }
+    @keyframes splashFade { to { opacity: 1; } }
   </style>
 </head>
 <body class="bg-slate-50 min-h-screen">
 
-  <!-- Red flood alert overlay -->
+  <!-- SPLASH -->
+  <div id="splash">
+    <div class="splash-logo">
+      <span class="splash-letter" style="--from:-80px; --delay:420ms">R</span>
+      <span class="splash-letter" style="--from:-50px; --delay:520ms">e</span>
+      <span class="splash-letter" style="--from:-25px; --delay:620ms">s</span>
+      <span class="splash-qhouse">
+        <svg viewBox="0 0 120 120" width="100%" height="100%">
+          <defs><linearGradient id="splashHouseFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7EE3D8"/><stop offset="1" stop-color="#2EA99D"/></linearGradient></defs>
+          <path d="M 14 63 L 60 20 L 106 63 L 106 108 L 14 108 Z" fill="url(#splashHouseFill)"/>
+          <circle cx="60" cy="78" r="22" fill="#061826"/>
+          <path d="M 72 92 L 92 108" stroke="#4FD1C5" stroke-width="9" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="splash-letter" style="--from:25px; --delay:700ms">i</span>
+      <span class="splash-letter" style="--from:50px; --delay:800ms">n</span>
+      <span class="splash-letter" style="--from:80px; --delay:900ms">g</span>
+    </div>
+    <div class="splash-tagline">Real-time · Alert · Assist</div>
+  </div>
+
+  <!-- Flood alert overlay -->
   <div id="alert-overlay" class="hidden fixed inset-0 flex flex-col items-center justify-center p-6 text-center text-white" style="animation: alertPulse 1.2s ease-in-out infinite;">
     <div class="text-5xl mb-2">⚠️</div>
     <div class="brand-pill mb-2" style="background:rgba(255,255,255,.15);color:#FEE2E2"><span class="accent-dot"></span> ACTIVE EMERGENCY</div>
@@ -70,8 +101,8 @@
         <button id="alert-actions-btn" class="bg-white text-red-700 font-bold px-5 py-3 rounded-xl shadow-lg flex items-center gap-2">🆘 Get help <span style="font-size:10px">▼</span></button>
         <div id="alert-actions-menu" class="hidden absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-2xl overflow-hidden min-w-[240px] text-left">
           <a href="tel:1077" class="flex items-center gap-3 px-4 py-3 text-slate-900 text-sm font-semibold hover:bg-slate-50 border-b border-slate-100"><span class="text-xl">📞</span><div><div>Call Flood Control</div><div class="text-[11px] text-slate-500">1077 · 24/7</div></div></a>
-          <a href="sms:1077?body=HELP%20—%20I%20need%20rescue.%20Please%20send%20help." class="flex items-center gap-3 px-4 py-3 text-slate-900 text-sm font-semibold hover:bg-slate-50 border-b border-slate-100"><span class="text-xl">💬</span><div><div>Send SMS to 1077</div><div class="text-[11px] text-slate-500">Pre-filled HELP message</div></div></a>
-          <a href="#" id="action-share" class="flex items-center gap-3 px-4 py-3 text-slate-900 text-sm font-semibold hover:bg-slate-50 border-b border-slate-100"><span class="text-xl">📍</span><div><div>Share my location</div><div class="text-[11px] text-slate-500">Via SMS with map link</div></div></a>
+          <a href="sms:1077?body=HELP%20—%20I%20need%20rescue." class="flex items-center gap-3 px-4 py-3 text-slate-900 text-sm font-semibold hover:bg-slate-50 border-b border-slate-100"><span class="text-xl">💬</span><div><div>Send SMS to 1077</div><div class="text-[11px] text-slate-500">Pre-filled HELP</div></div></a>
+          <a href="#" id="action-share" class="flex items-center gap-3 px-4 py-3 text-slate-900 text-sm font-semibold hover:bg-slate-50 border-b border-slate-100"><span class="text-xl">📍</span><div><div>Share my location</div><div class="text-[11px] text-slate-500">Via SMS with map</div></div></a>
           <a href="tel:112" class="flex items-center gap-3 px-4 py-3 text-red-700 text-sm font-bold hover:bg-red-50"><span class="text-xl">🚨</span><div><div>Call 112 — Emergency</div><div class="text-[11px] text-slate-500">All services</div></div></a>
         </div>
       </div>
@@ -79,42 +110,33 @@
     </div>
   </div>
 
-  <!-- Landslide alert overlay (amber, hilly regions) -->
+  <!-- Landslide overlay -->
   <div id="landslide-overlay" class="hidden fixed inset-0 flex flex-col items-center justify-center p-6 text-center text-white" style="background: radial-gradient(circle, #B45309, #78350F); animation: landslidePulse 1.5s ease-in-out infinite;">
     <div class="text-5xl mb-2">⛰️</div>
-    <div class="brand-pill mb-2" style="background:rgba(255,255,255,.15);color:#FFEDD5"><span class="accent-dot" style="background:#F97316;box-shadow:0 0 8px #F97316"></span> LANDSLIDE RISK</div>
+    <div class="brand-pill mb-2" style="background:rgba(255,255,255,.15);color:#FFEDD5"><span class="accent-dot" style="background:#F97316"></span> LANDSLIDE RISK</div>
     <h2 id="landslide-title" class="text-2xl font-extrabold">LANDSLIDE ALERT</h2>
-    <p id="landslide-body" class="text-sm max-w-sm mt-1">Heavy rainfall on steep slope — stay off ghats, highways.</p>
+    <p id="landslide-body" class="text-sm max-w-sm mt-1">Heavy rainfall on steep slope — stay off ghats.</p>
     <p class="text-xs opacity-75 mb-3">Issued by GSI · State SDMA</p>
     <div class="w-full max-w-xs bg-black/30 rounded-lg p-2.5 mb-3 flex items-center gap-2 text-xs">
       <span>🌧️</span>
-      <div class="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-        <div id="landslide-meter" class="h-full bg-gradient-to-r from-yellow-400 to-red-600 rounded-full" style="width:85%"></div>
-      </div>
+      <div class="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden"><div id="landslide-meter" class="h-full bg-gradient-to-r from-yellow-400 to-red-600 rounded-full" style="width:85%"></div></div>
       <span id="landslide-mm" class="font-extrabold">128mm</span>
     </div>
-    <p class="text-[11px] opacity-90 mb-3">🟫 Slope danger · 🚨 Avoid ghat roads</p>
     <div class="flex gap-3">
       <a href="tel:1070" class="bg-white text-amber-800 font-bold px-5 py-3 rounded-xl shadow-lg">📞 Call 1070 SDMA</a>
       <button id="landslide-dismiss" class="bg-white/20 border border-white/40 text-white font-bold px-5 py-3 rounded-xl">I'm safe</button>
     </div>
   </div>
 
-  <!-- Notification backdrop + panel -->
+  <!-- Notification panel -->
   <div id="notif-backdrop" class="notif-backdrop"></div>
   <aside id="notif-panel" class="notif-panel">
-    <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-      <h2 class="font-bold text-slate-900">Alerts & updates</h2>
-      <button id="notif-close" class="text-slate-500 text-xl leading-none">✕</button>
-    </div>
-    <div class="flex items-center justify-between px-4 py-2 text-xs text-slate-500">
-      <span id="notif-count">0 alerts</span>
-      <button id="notif-mark-read" class="text-orange-600 font-semibold">Mark all read</button>
-    </div>
+    <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100"><h2 class="font-bold text-slate-900">Alerts & updates</h2><button id="notif-close" class="text-slate-500 text-xl leading-none">✕</button></div>
+    <div class="flex items-center justify-between px-4 py-2 text-xs text-slate-500"><span id="notif-count">0 alerts</span><button id="notif-mark-read" class="text-orange-600 font-semibold">Mark all read</button></div>
     <div id="notif-list" class="flex-1 overflow-y-auto"></div>
   </aside>
 
-  <!-- Region picker modal -->
+  <!-- Region picker -->
   <div id="region-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-6">
     <div class="bg-slate-900 text-white rounded-2xl max-w-sm w-full p-6">
       <h2 class="font-bold text-lg mb-1">Pick your region</h2>
@@ -124,113 +146,71 @@
     </div>
   </div>
 
-  <!-- Navy header -->
+  <!-- Header -->
   <header class="bg-slate-900 text-white px-5 pt-8 pb-10 rounded-b-3xl">
     <div class="max-w-md mx-auto">
       <div class="flex items-center justify-between mb-4">
         <div class="flex items-center gap-2">
-          <svg width="26" height="26" viewBox="0 0 100 100" fill="none">
-            <path d="M 10 44 L 50 10 L 90 44 L 90 90 L 10 90 Z" fill="#4FD1C5"/>
-            <circle cx="50" cy="60" r="20" fill="#0F172A"/>
-            <path d="M 60 72 L 72 86" stroke="#4FD1C5" stroke-width="7" stroke-linecap="round"/>
-          </svg>
+          <svg width="26" height="26" viewBox="0 0 100 100" fill="none"><path d="M 10 44 L 50 10 L 90 44 L 90 90 L 10 90 Z" fill="#4FD1C5"/><circle cx="50" cy="60" r="20" fill="#0F172A"/><path d="M 60 72 L 72 86" stroke="#4FD1C5" stroke-width="7" stroke-linecap="round"/></svg>
           <span class="logo-wm text-xl">Res<span style="color:#4FD1C5">Q</span>ing</span>
         </div>
         <div class="flex items-center gap-2">
-          <button id="region-btn" class="text-xs bg-white/10 hover:bg-white/20 px-2.5 py-1 rounded-full font-semibold">
-            <span id="region-flag">🏙️</span>
-            <span id="region-name">Delhi</span>
-            <span style="font-size:9px">▼</span>
-          </button>
-          <button id="bell" class="bell text-slate-300 hover:text-white">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            <span id="bell-badge" class="bell-badge hidden">0</span>
-          </button>
+          <button id="region-btn" class="text-xs bg-white/10 hover:bg-white/20 px-2.5 py-1 rounded-full font-semibold"><span id="region-flag">🏙️</span> <span id="region-name">Delhi</span> <span style="font-size:9px">▼</span></button>
+          <button id="bell" class="bell text-slate-300 hover:text-white"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span id="bell-badge" class="bell-badge hidden">0</span></button>
         </div>
       </div>
       <h1 class="text-2xl font-bold leading-tight mb-1">Find help nearby</h1>
       <p class="text-sm text-slate-400 mb-5">Works offline. Last synced <span id="last-sync">just now</span>.</p>
       <div id="weather-chip" class="hidden items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2 mb-4 text-xs">
         <span id="weather-icon" class="text-xl">🌤️</span>
-        <div class="flex-1 min-w-0">
-          <div id="weather-headline" class="font-semibold text-white truncate">Loading weather…</div>
-          <div id="weather-sub" class="text-[10px] text-slate-400">—</div>
-        </div>
+        <div class="flex-1 min-w-0"><div id="weather-headline" class="font-semibold text-white truncate">Loading weather…</div><div id="weather-sub" class="text-[10px] text-slate-400">—</div></div>
         <span id="weather-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full">SAFE</span>
       </div>
       <div class="bg-white rounded-xl flex items-center gap-2 px-4 py-3 shadow-lg">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>
         <input id="searchBar" type="text" placeholder="Search by name, area, PIN..." class="bg-transparent flex-1 text-sm text-slate-900 outline-none placeholder-slate-400" />
       </div>
-      <a href="map.html" class="block mt-4">
-        <div id="mini-map" class="mini-map ring-2 ring-white/20 hover:ring-orange-400 transition"></div>
-        <div class="text-[10px] text-slate-400 mt-1 text-center">Tap map to open full view →</div>
-      </a>
+      <a href="map.html" class="block mt-4"><div id="mini-map" class="mini-map ring-2 ring-white/20 hover:ring-orange-400 transition"></div><div class="text-[10px] text-slate-400 mt-1 text-center">Tap map to open full view →</div></a>
     </div>
   </header>
 
   <main class="max-w-md mx-auto px-5 -mt-4">
-    <div id="offline-banner" class="hidden mb-4 bg-orange-50 border border-orange-200 text-orange-900 rounded-xl px-4 py-2.5 text-xs font-semibold flex items-center gap-2">
-      <span class="w-2 h-2 bg-orange-500 rounded-full"></span>You are offline — showing saved data
-    </div>
+    <div id="offline-banner" class="hidden mb-4 bg-orange-50 border border-orange-200 text-orange-900 rounded-xl px-4 py-2.5 text-xs font-semibold flex items-center gap-2"><span class="w-2 h-2 bg-orange-500 rounded-full"></span>You are offline — showing saved data</div>
     <section id="tiles" class="grid grid-cols-2 gap-3 mb-6">
-      <div class="tile tile-shelter" data-type="shelter">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
-        <div><div id="count-shelter" class="text-3xl font-extrabold leading-none">—</div><div class="text-xs font-semibold mt-1">Shelters</div></div>
-      </div>
-      <div class="tile tile-hospital" data-type="hospital">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M9 2h6v6h6v6h-6v6H9v-6H3V8h6z"/></svg>
-        <div><div id="count-hospital" class="text-3xl font-extrabold leading-none">—</div><div class="text-xs font-semibold mt-1">Hospitals</div></div>
-      </div>
-      <div class="tile tile-ngo" data-type="ngo">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 16 0v2"/></svg>
-        <div><div id="count-ngo" class="text-3xl font-extrabold leading-none">—</div><div class="text-xs font-semibold mt-1">NGOs</div></div>
-      </div>
-      <div class="tile tile-sos" data-type="sos">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M22 16.92V21a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.86 19.86 0 0 1 2.12 5.18 2 2 0 0 1 4.1 3h4.09a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.91 11.09a16 16 0 0 0 6 6l1.45-1.45a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92z"/></svg>
-        <div><div id="count-sos" class="text-3xl font-extrabold leading-none">—</div><div class="text-xs font-semibold mt-1">SOS Numbers</div></div>
-      </div>
+      <div class="tile tile-shelter" data-type="shelter"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg><div><div id="count-shelter" class="text-3xl font-extrabold leading-none">—</div><div class="text-xs font-semibold mt-1">Shelters</div></div></div>
+      <div class="tile tile-hospital" data-type="hospital"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M9 2h6v6h6v6h-6v6H9v-6H3V8h6z"/></svg><div><div id="count-hospital" class="text-3xl font-extrabold leading-none">—</div><div class="text-xs font-semibold mt-1">Hospitals</div></div></div>
+      <div class="tile tile-ngo" data-type="ngo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 16 0v2"/></svg><div><div id="count-ngo" class="text-3xl font-extrabold leading-none">—</div><div class="text-xs font-semibold mt-1">NGOs</div></div></div>
+      <div class="tile tile-sos" data-type="sos"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M22 16.92V21a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.86 19.86 0 0 1 2.12 5.18 2 2 0 0 1 4.1 3h4.09a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.91 11.09a16 16 0 0 0 6 6l1.45-1.45a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92z"/></svg><div><div id="count-sos" class="text-3xl font-extrabold leading-none">—</div><div class="text-xs font-semibold mt-1">SOS Numbers</div></div></div>
     </section>
-    <section>
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-xs font-bold text-slate-600 uppercase tracking-wider">Resources</h2>
-        <span id="result-count" class="text-xs text-slate-500">—</span>
-      </div>
-      <div id="results" class="space-y-2 pb-6"><div class="text-sm text-slate-400 text-center py-8">Loading resources...</div></div>
-    </section>
+    <section><div class="flex items-center justify-between mb-3"><h2 class="text-xs font-bold text-slate-600 uppercase tracking-wider">Resources</h2><span id="result-count" class="text-xs text-slate-500">—</span></div><div id="results" class="space-y-2 pb-6"><div class="text-sm text-slate-400 text-center py-8">Loading...</div></div></section>
     <section class="mb-6">
-  <div class="flex items-center justify-between mb-3">
-    <h2 class="text-xs font-bold text-slate-600 uppercase tracking-wider">Emergency contacts</h2>
-    <button id="contact-add" class="text-xs text-orange-600 font-semibold">+ Add</button>
-  </div>
-  <div id="contact-list" class="space-y-2"></div>
-</section>
-
-<!-- Add/edit contact modal -->
-<div id="contact-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-6" style="z-index:9998">
-  <div class="bg-white rounded-2xl max-w-sm w-full p-6">
-    <h2 id="contact-modal-title" class="font-bold text-lg mb-4">Add contact</h2>
-    <input id="contact-name" placeholder="Name (e.g. Mummy)" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-2" />
-    <input id="contact-role" placeholder="Relation (e.g. Mother)" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-2" />
-    <input id="contact-phone" placeholder="+91 98765 43210" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-4" />
-    <div class="flex gap-2">
-      <button id="contact-cancel" class="flex-1 bg-slate-100 py-2 rounded-lg font-semibold text-sm">Cancel</button>
-      <button id="contact-save" class="flex-1 bg-slate-900 text-white py-2 rounded-lg font-semibold text-sm">Save</button>
+      <div class="flex items-center justify-between mb-3"><h2 class="text-xs font-bold text-slate-600 uppercase tracking-wider">Emergency contacts</h2><button id="contact-add" class="text-xs text-orange-600 font-semibold">+ Add</button></div>
+      <div id="contact-list" class="space-y-2"></div>
+    </section>
+    <div id="contact-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-6" style="z-index:9998">
+      <div class="bg-white rounded-2xl max-w-sm w-full p-6">
+        <h2 id="contact-modal-title" class="font-bold text-lg mb-4">Add contact</h2>
+        <input id="contact-name" placeholder="Name (e.g. Mummy)" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-2" />
+        <input id="contact-role" placeholder="Relation (e.g. Mother)" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-2" />
+        <input id="contact-phone" placeholder="+91 98765 43210" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-4" />
+        <div class="flex gap-2"><button id="contact-cancel" class="flex-1 bg-slate-100 py-2 rounded-lg font-semibold text-sm">Cancel</button><button id="contact-save" class="flex-1 bg-slate-900 text-white py-2 rounded-lg font-semibold text-sm">Save</button></div>
+      </div>
     </div>
-  </div>
-</div>
   </main>
 
   <button id="demo-alert-btn" class="hidden"></button>
 
   <nav class="bottom-nav">
     <a href="index.html" class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>Home</a>
-    <a href="map.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2L2 5v17l7-3 6 3 7-3V2l-7 3-6-3z"/><path d="M9 2v17M15 5v17"/></svg>Map</a>
+    <a href="map.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2L2 5v17l7-3 6 3 7-3V2l-7 3-6-3z"/></svg>Map</a>
     <a href="#" onclick="document.getElementById('bell').click();return false;" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Alerts</a>
     <a href="#" onclick="document.getElementById('demo-alert-btn').click();return false;" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>SOS</a>
   </nav>
 
   <script>
+    // Splash
+    setTimeout(() => document.getElementById('splash')?.classList.add('gone'), 2200);
+
     const STARTER_DATA = [
       { id: 's1', type: 'shelter', name: 'Govt Boys Sr. Sec. School', address: 'Yamuna Bazaar, Delhi', phone: '011-23967890', district: 'Central Delhi' },
       { id: 's2', type: 'shelter', name: 'DAV Public School', address: 'Civil Lines, Delhi', phone: '011-23921234', district: 'North Delhi' },
@@ -247,39 +227,23 @@
       try {
         const db = await idb.openDB('resqing', 1, { upgrade(db) { db.createObjectStore('entries', { keyPath: 'id' }); } });
         let entries = await db.getAll('entries');
-        if (entries.length === 0) {
-          const tx = db.transaction('entries', 'readwrite');
-          for (const e of STARTER_DATA) await tx.store.put(e);
-          await tx.done;
-          entries = STARTER_DATA;
-        }
+        if (entries.length === 0) { const tx = db.transaction('entries', 'readwrite'); for (const e of STARTER_DATA) await tx.store.put(e); await tx.done; entries = STARTER_DATA; }
         allEntries = entries;
-      } catch (err) { console.error(err); allEntries = STARTER_DATA; }
+      } catch (err) { allEntries = STARTER_DATA; }
       updateCounts(); renderResults(allEntries);
     }
-
     function updateCounts() {
       const counts = { shelter: 0, hospital: 0, ngo: 0, sos: 0 };
       for (const e of allEntries) counts[e.type] = (counts[e.type] || 0) + 1;
-      for (const type in counts) document.getElementById('count-' + type).textContent = counts[type];
+      for (const t in counts) document.getElementById('count-' + t).textContent = counts[t];
     }
-
     function renderResults(entries) {
       const el = document.getElementById('results');
       document.getElementById('result-count').textContent = entries.length + ' found';
       if (entries.length === 0) { el.innerHTML = '<div class="text-sm text-slate-400 text-center py-8">No matches.</div>'; return; }
       const colors = { shelter:'bg-blue-100 text-blue-800', hospital:'bg-red-100 text-red-800', ngo:'bg-emerald-100 text-emerald-800', sos:'bg-orange-100 text-orange-800' };
-      el.innerHTML = entries.map(e => `
-        <div class="bg-white rounded-xl p-3 shadow-sm flex gap-3 items-start">
-          <div class="w-10 h-10 rounded-lg ${colors[e.type]} flex items-center justify-center font-bold text-sm shrink-0">${e.type[0].toUpperCase()}</div>
-          <div class="flex-1 min-w-0">
-            <div class="text-sm font-semibold text-slate-900 truncate">${e.name}</div>
-            <div class="text-xs text-slate-500 truncate">${e.address}</div>
-          </div>
-          <a href="tel:${e.phone}" class="text-xs bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-semibold shrink-0">📞 Call</a>
-        </div>`).join('');
+      el.innerHTML = entries.map(e => `<div class="bg-white rounded-xl p-3 shadow-sm flex gap-3 items-start"><div class="w-10 h-10 rounded-lg ${colors[e.type]} flex items-center justify-center font-bold text-sm shrink-0">${e.type[0].toUpperCase()}</div><div class="flex-1 min-w-0"><div class="text-sm font-semibold text-slate-900 truncate">${e.name}</div><div class="text-xs text-slate-500 truncate">${e.address}</div></div><a href="tel:${e.phone}" class="text-xs bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-semibold shrink-0">📞 Call</a></div>`).join('');
     }
-
     function handleSearch() {
       const q = document.getElementById('searchBar').value.toLowerCase().trim();
       let filtered = allEntries;
@@ -287,32 +251,25 @@
       if (q) filtered = filtered.filter(e => e.name.toLowerCase().includes(q) || e.address.toLowerCase().includes(q) || (e.district||'').toLowerCase().includes(q));
       renderResults(filtered);
     }
-
     function setupTiles() {
-      document.querySelectorAll('.tile').forEach(tile => {
-        tile.addEventListener('click', () => {
-          const type = tile.dataset.type;
-          activeFilter = (activeFilter === type) ? null : type;
-          document.querySelectorAll('.tile').forEach(t => t.style.opacity = (activeFilter === null || t.dataset.type === activeFilter) ? '1' : '0.4');
-          handleSearch();
-        });
-      });
+      document.querySelectorAll('.tile').forEach(tile => tile.addEventListener('click', () => {
+        const type = tile.dataset.type;
+        activeFilter = (activeFilter === type) ? null : type;
+        document.querySelectorAll('.tile').forEach(t => t.style.opacity = (activeFilter === null || t.dataset.type === activeFilter) ? '1' : '0.4');
+        handleSearch();
+      }));
     }
-
     function setupOffline() {
       const banner = document.getElementById('offline-banner');
-      const chip = document.getElementById('status-chip');
-      const update = () => {
-        if (navigator.onLine) { banner.classList.add('hidden'); if (chip) chip.textContent = '● Online'; }
-        else { banner.classList.remove('hidden'); if (chip) chip.textContent = '✈ Offline'; }
-      };
+      const update = () => { if (navigator.onLine) banner.classList.add('hidden'); else banner.classList.remove('hidden'); };
       window.addEventListener('online', update); window.addEventListener('offline', update); update();
     }
 
+    // Notifications
     let notifications = [
-      { id: 1, title: 'Flood warning · Yamuna Bazaar', body: 'Water crossed danger mark 206m. Evacuation in progress.', time: '2 min ago', unread: true, icon: '⚠️', color: 'bg-red-100 text-red-700' },
+      { id: 1, title: 'Flood warning · Yamuna Bazaar', body: 'Water crossed danger mark 206m.', time: '2 min ago', unread: true, icon: '⚠️', color: 'bg-red-100 text-red-700' },
       { id: 2, title: 'Heavy rain expected', body: '85mm forecast for tomorrow.', time: '1 hr ago', unread: true, icon: '🌧️', color: 'bg-blue-100 text-blue-700' },
-      { id: 3, title: 'Goonj Delhi — new relief camp', body: 'Food packets at Sarita Vihar.', time: '3 hr ago', unread: false, icon: '🤝', color: 'bg-emerald-100 text-emerald-700' },
+      { id: 3, title: 'Goonj — new relief camp', body: 'Food packets at Sarita Vihar.', time: '3 hr ago', unread: false, icon: '🤝', color: 'bg-emerald-100 text-emerald-700' },
       { id: 4, title: 'LNJP added 20 beds', body: 'Shelter capacity update.', time: '5 hr ago', unread: false, icon: 'ℹ️', color: 'bg-slate-100 text-slate-700' }
     ];
     function renderNotifs() {
@@ -321,15 +278,7 @@
       document.getElementById('notif-count').textContent = `${notifications.length} alerts · ${unread} unread`;
       const badge = document.getElementById('bell-badge');
       if (unread > 0) { badge.classList.remove('hidden'); badge.textContent = unread; } else badge.classList.add('hidden');
-      list.innerHTML = notifications.map(n => `
-        <div class="notif-item ${n.unread ? 'unread' : ''}" data-id="${n.id}">
-          <div class="notif-icon ${n.color}">${n.icon}</div>
-          <div class="flex-1 min-w-0">
-            <div class="text-sm font-semibold text-slate-900">${n.title}</div>
-            <div class="text-xs text-slate-500 mt-0.5">${n.body}</div>
-            <div class="text-[10px] text-slate-400 mt-1">${n.time}</div>
-          </div>
-        </div>`).join('');
+      list.innerHTML = notifications.map(n => `<div class="notif-item ${n.unread ? 'unread' : ''}" data-id="${n.id}"><div class="notif-icon ${n.color}">${n.icon}</div><div class="flex-1 min-w-0"><div class="text-sm font-semibold text-slate-900">${n.title}</div><div class="text-xs text-slate-500 mt-0.5">${n.body}</div><div class="text-[10px] text-slate-400 mt-1">${n.time}</div></div></div>`).join('');
     }
     document.getElementById('bell').addEventListener('click', () => { document.getElementById('notif-panel').classList.add('open'); document.getElementById('notif-backdrop').classList.add('open'); });
     const closeNotifs = () => { document.getElementById('notif-panel').classList.remove('open'); document.getElementById('notif-backdrop').classList.remove('open'); };
@@ -337,7 +286,27 @@
     document.getElementById('notif-backdrop').addEventListener('click', closeNotifs);
     document.getElementById('notif-mark-read').addEventListener('click', () => { notifications.forEach(n => n.unread = false); renderNotifs(); });
     document.getElementById('notif-list').addEventListener('click', (e) => { const item = e.target.closest('.notif-item'); if (!item) return; const n = notifications.find(x => x.id === Number(item.dataset.id)); if (n) n.unread = false; renderNotifs(); });
-    window.pushNotification = (notif) => { notifications.unshift({ id: Date.now(), unread: true, time: 'just now', ...notif }); renderNotifs(); };
+    window.pushNotification = (notif) => { notifications.unshift({ id: Date.now(), unread: true, time: 'just now', ...notif }); renderNotifs(); playAlertSound(); };
+
+    // Alert sound (Web Audio beep)
+    function playAlertSound() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        osc.type = 'sine'; osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(); osc.stop(ctx.currentTime + 0.4);
+      } catch(e){}
+    }
+
+    // Browser notification API
+    if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+    function sendBrowserNotif(title, body) {
+      if ('Notification' in window && Notification.permission === 'granted') new Notification(title, { body, icon: 'icons/icon-192.png' });
+    }
 
     let homeMap = null, alertMap = null;
     function makeMiniMap(elId) {
@@ -352,35 +321,27 @@
       map.setView([lat, lng], 13);
     }
     function drawFloodArrow(map, lat, lng) {
-      const from = [lat + 0.015, lng + 0.015], to = [lat + 0.003, lng + 0.003];
-      L.polyline([from, to], { color: '#DC2626', weight: 4, lineCap: 'round' }).addTo(map);
-      L.circleMarker(to, { radius: 6, fillColor: '#DC2626', color: 'white', weight: 2, fillOpacity: 1 }).addTo(map);
+      L.polyline([[lat+0.015, lng+0.015], [lat+0.003, lng+0.003]], { color: '#DC2626', weight: 4, lineCap: 'round' }).addTo(map);
+      L.circleMarker([lat+0.003, lng+0.003], { radius: 6, fillColor: '#DC2626', color: 'white', weight: 2, fillOpacity: 1 }).addTo(map);
     }
-
     homeMap = makeMiniMap('mini-map');
-    navigator.geolocation?.getCurrentPosition(
-      (pos) => markEpicenter(homeMap, pos.coords.latitude, pos.coords.longitude),
-      (err) => console.warn('location:', err.message),
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
+    navigator.geolocation?.getCurrentPosition((pos) => markEpicenter(homeMap, pos.coords.latitude, pos.coords.longitude), () => {}, { enableHighAccuracy: true, timeout: 8000 });
 
-    function triggerAlert({ title = 'FLOOD ALERT', body = 'Move to higher ground immediately.' } = {}) {
+    function triggerAlert({ title='FLOOD ALERT', body='Move to higher ground immediately.' } = {}) {
       document.getElementById('alert-title').textContent = title;
       document.getElementById('alert-body').textContent = body;
       document.getElementById('alert-overlay').classList.remove('hidden');
       if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 500]);
       window.pushNotification({ title, body, icon: '⚠️', color: 'bg-red-100 text-red-700' });
+      sendBrowserNotif(title, body);
       setTimeout(() => {
         if (!alertMap) alertMap = makeMiniMap('alert-map');
         alertMap.invalidateSize();
-        navigator.geolocation?.getCurrentPosition(
-          (pos) => { markEpicenter(alertMap, pos.coords.latitude, pos.coords.longitude); drawFloodArrow(alertMap, pos.coords.latitude, pos.coords.longitude); },
-          () => alertMap.setView([28.6139, 77.2090], 12)
-        );
+        navigator.geolocation?.getCurrentPosition((pos) => { markEpicenter(alertMap, pos.coords.latitude, pos.coords.longitude); drawFloodArrow(alertMap, pos.coords.latitude, pos.coords.longitude); }, () => alertMap.setView([28.6139, 77.2090], 12));
       }, 100);
     }
     document.getElementById('alert-dismiss').addEventListener('click', () => document.getElementById('alert-overlay').classList.add('hidden'));
-    document.getElementById('demo-alert-btn').addEventListener('click', () => triggerAlert({ title: 'FLOOD ALERT', body: 'Yamuna crossing danger mark near Yamuna Bazaar. Move to higher ground now.' }));
+    document.getElementById('demo-alert-btn').addEventListener('click', () => triggerAlert({ title: 'FLOOD ALERT', body: 'Yamuna crossing danger mark. Move to higher ground now.' }));
 
     const actionsBtn = document.getElementById('alert-actions-btn');
     const actionsMenu = document.getElementById('alert-actions-menu');
@@ -388,26 +349,17 @@
     document.addEventListener('click', () => actionsMenu.classList.add('hidden'));
     document.getElementById('action-share').addEventListener('click', (e) => {
       e.preventDefault();
-      if (!navigator.geolocation) { alert('Location not supported'); return; }
-      navigator.geolocation.getCurrentPosition((pos) => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        const msg = encodeURIComponent(`HELP — I am stuck here: https://maps.google.com/?q=${lat},${lng}`);
+      navigator.geolocation?.getCurrentPosition((pos) => {
+        const msg = encodeURIComponent(`HELP — I am stuck here: https://maps.google.com/?q=${pos.coords.latitude},${pos.coords.longitude}`);
         window.location.href = `sms:1077?body=${msg}`;
-      }, (err) => alert('Could not get location: ' + err.message));
+      });
     });
 
-    // === REGION SWITCHER ===
-    let regions = {};
-    let currentRegionId = localStorage.getItem('resqing-region') || 'delhi';
-
+    // Regions
+    let regions = {}, currentRegionId = localStorage.getItem('resqing-region') || 'delhi';
     async function loadRegions() {
-      try {
-        const res = await fetch('data/regions.json');
-        regions = await res.json();
-        applyRegion(currentRegionId);
-      } catch (e) { console.warn('regions.json not found'); }
+      try { const res = await fetch('data/regions.json'); regions = await res.json(); applyRegion(currentRegionId); } catch (e) {}
     }
-
     function applyRegion(id) {
       const r = regions[id]; if (!r) return;
       currentRegionId = id;
@@ -416,240 +368,110 @@
       document.getElementById('region-name').textContent = r.name.split(' ')[0];
       if (homeMap) homeMap.setView(r.center, 11);
     }
-
     function openRegionModal() {
       const list = document.getElementById('region-list');
       const badges = { safe: 'bg-emerald-500/20 text-emerald-300', high: 'bg-red-500/20 text-red-300' };
-      list.innerHTML = Object.entries(regions).map(([id, r]) => `
-        <div data-id="${id}" class="region-card bg-white/5 hover:bg-white/10 cursor-pointer border border-transparent ${id === currentRegionId ? 'border-teal-400 bg-teal-400/10' : ''} rounded-xl p-3 flex items-center gap-3">
-          <span class="text-2xl">${r.flag}</span>
-          <div class="flex-1 min-w-0">
-            <div class="font-bold text-sm">${r.name}</div>
-            <div class="text-xs text-slate-400">${r.risk}</div>
-          </div>
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${badges[r.badge] || 'bg-slate-500/20 text-slate-300'}">${r.badge.toUpperCase()}</span>
-        </div>
-      `).join('');
+      list.innerHTML = Object.entries(regions).map(([id, r]) => `<div data-id="${id}" class="region-card bg-white/5 hover:bg-white/10 cursor-pointer border border-transparent ${id === currentRegionId ? 'border-teal-400 bg-teal-400/10' : ''} rounded-xl p-3 flex items-center gap-3"><span class="text-2xl">${r.flag}</span><div class="flex-1 min-w-0"><div class="font-bold text-sm">${r.name}</div><div class="text-xs text-slate-400">${r.risk}</div></div><span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${badges[r.badge] || 'bg-slate-500/20 text-slate-300'}">${r.badge.toUpperCase()}</span></div>`).join('');
       document.getElementById('region-modal').classList.remove('hidden');
     }
-
-    function closeRegionModal() {
-      document.getElementById('region-modal').classList.add('hidden');
-    }
-
     document.getElementById('region-btn').addEventListener('click', openRegionModal);
-    document.getElementById('region-close').addEventListener('click', closeRegionModal);
+    document.getElementById('region-close').addEventListener('click', () => document.getElementById('region-modal').classList.add('hidden'));
     document.getElementById('region-modal').addEventListener('click', (e) => {
-      if (e.target.id === 'region-modal') closeRegionModal();
+      if (e.target.id === 'region-modal') document.getElementById('region-modal').classList.add('hidden');
       const card = e.target.closest('.region-card');
-      if (card) {
-        applyRegion(card.dataset.id);
-        closeRegionModal();
-      }
+      if (card) { applyRegion(card.dataset.id); document.getElementById('region-modal').classList.add('hidden'); }
     });
 
-    // === WEATHER CHIP (Open-Meteo, no API key) ===
+    // Weather
     async function updateWeather() {
-      const chip = document.getElementById('weather-chip');
       try {
-        const regionId = localStorage.getItem('resqing-region') || 'delhi';
-        const regionsRes = await fetch('data/regions.json');
-        const regions = await regionsRes.json();
-        const r = regions[regionId];
-        if (!r) return;
+        const res1 = await fetch('data/regions.json'); const regs = await res1.json(); const r = regs[localStorage.getItem('resqing-region') || 'delhi']; if (!r) return;
         const [lat, lng] = r.center;
-
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}`
-          + `&current=temperature_2m,precipitation,weather_code`
-          + `&daily=precipitation_sum,weather_code&timezone=auto&forecast_days=2`;
-        const res = await fetch(url);
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code&daily=precipitation_sum&timezone=auto&forecast_days=2`);
         const d = await res.json();
-
         const temp = Math.round(d.current.temperature_2m);
-        const code = d.current.weather_code;
-        const tomorrowMm = d.daily?.precipitation_sum?.[1] ?? 0;
-
-        let band = 'SAFE', badgeBg = 'bg-emerald-500/20 text-emerald-300', icon = '☀️', headline = `${temp}°C · Clear skies`;
-        if (tomorrowMm > 50) {
-          band = 'EXTREME'; badgeBg = 'bg-red-500/20 text-red-300'; icon = '⛈️';
-          headline = `Extreme rain · ${tomorrowMm.toFixed(0)}mm tomorrow`;
-          window.pushNotification({
-            title: `Extreme weather · ${r.name}`,
-            body: `${tomorrowMm.toFixed(0)}mm rain forecast — stay indoors, prepare emergency kit.`,
-            icon: '⛈️', color: 'bg-red-100 text-red-700'
-          });
-        } else if (tomorrowMm > 15) {
-          band = 'MODERATE'; badgeBg = 'bg-amber-500/20 text-amber-300'; icon = '🌧️';
-          headline = `Moderate rain · ${tomorrowMm.toFixed(0)}mm tomorrow`;
-        } else if ([45, 48].includes(code)) {
-          icon = '🌫️'; headline = `${temp}°C · Fog`;
-        } else if ([51,53,55,61,63,80].includes(code)) {
-          icon = '🌦️'; headline = `${temp}°C · Light rain`;
-        }
-
+        const mm = d.daily?.precipitation_sum?.[1] ?? 0;
+        let band = 'SAFE', bg = 'bg-emerald-500/20 text-emerald-300', icon = '☀️', head = `${temp}°C · Clear`;
+        if (mm > 50) { band = 'EXTREME'; bg = 'bg-red-500/20 text-red-300'; icon = '⛈️'; head = `Extreme rain · ${mm.toFixed(0)}mm tomorrow`; window.pushNotification({ title: `Extreme weather · ${r.name}`, body: `${mm.toFixed(0)}mm forecast.`, icon: '⛈️', color: 'bg-red-100 text-red-700' }); }
+        else if (mm > 15) { band = 'MODERATE'; bg = 'bg-amber-500/20 text-amber-300'; icon = '🌧️'; head = `Moderate rain · ${mm.toFixed(0)}mm tomorrow`; }
         document.getElementById('weather-icon').textContent = icon;
-        document.getElementById('weather-headline').textContent = headline;
-        document.getElementById('weather-sub').textContent = `${r.name} · tomorrow ${tomorrowMm.toFixed(1)}mm`;
-        const badge = document.getElementById('weather-badge');
-        badge.textContent = band;
-        badge.className = `text-[9px] font-bold px-2 py-0.5 rounded-full ${badgeBg}`;
-        chip.classList.remove('hidden');
-        chip.classList.add('flex');
-      } catch (e) { console.warn('Weather fetch failed (likely offline):', e); }
+        document.getElementById('weather-headline').textContent = head;
+        document.getElementById('weather-sub').textContent = `${r.name} · tomorrow ${mm.toFixed(1)}mm`;
+        const b = document.getElementById('weather-badge'); b.textContent = band; b.className = `text-[9px] font-bold px-2 py-0.5 rounded-full ${bg}`;
+        document.getElementById('weather-chip').classList.remove('hidden');
+        document.getElementById('weather-chip').classList.add('flex');
+      } catch(e){}
     }
 
-    // === LANDSLIDE ALERT ===
+    // Landslide
     async function checkLandslideRisk() {
-      const regionId = localStorage.getItem('resqing-region') || 'delhi';
       try {
-        const [regionsRes, slopeRes] = await Promise.all([
-          fetch('data/regions.json'),
-          fetch('data/slope-risk.json')
-        ]);
-        const regions = await regionsRes.json();
-        const slope = await slopeRes.json();
-        const r = regions[regionId];
-        const s = slope[regionId];
-        if (!r || !s) return;
-
+        const [r1, r2] = await Promise.all([fetch('data/regions.json'), fetch('data/slope-risk.json')]);
+        const regs = await r1.json(), slope = await r2.json();
+        const id = localStorage.getItem('resqing-region') || 'delhi';
+        const r = regs[id], s = slope[id]; if (!r || !s) return;
         const [lat, lng] = r.center;
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}`
-          + `&hourly=precipitation&past_days=1&forecast_days=2&timezone=auto`;
-        const res = await fetch(url);
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=precipitation&past_days=1&forecast_days=2&timezone=auto`);
         const d = await res.json();
-        const last24 = (d.hourly?.precipitation || []).slice(0, 24).reduce((a,b) => a + (b || 0), 0);
-        const next24 = (d.hourly?.precipitation || []).slice(24, 48).reduce((a,b) => a + (b || 0), 0);
-        const maxMm = Math.max(last24, next24);
-
-        if (maxMm >= s.threshold_mm) {
-          fireLandslideAlert(maxMm, s, r);
-        } else {
-          console.log(`Landslide check: ${maxMm.toFixed(0)}mm (threshold ${s.threshold_mm}mm) — safe`);
-        }
-      } catch (e) { console.warn('Landslide check failed:', e); }
+        const last24 = (d.hourly?.precipitation || []).slice(0, 24).reduce((a,b) => a+(b||0), 0);
+        const next24 = (d.hourly?.precipitation || []).slice(24, 48).reduce((a,b) => a+(b||0), 0);
+        const mm = Math.max(last24, next24);
+        if (mm >= s.threshold_mm) fireLandslideAlert(mm, s, r);
+      } catch(e){}
     }
-
     function fireLandslideAlert(mm, slope, region) {
       document.getElementById('landslide-title').textContent = `LANDSLIDE ALERT · ${region.name}`;
       document.getElementById('landslide-body').textContent = slope.advice;
       document.getElementById('landslide-mm').textContent = `${Math.round(mm)}mm`;
-      const pct = Math.min(100, Math.round((mm / slope.threshold_mm) * 100));
-      document.getElementById('landslide-meter').style.width = pct + '%';
+      document.getElementById('landslide-meter').style.width = Math.min(100, Math.round((mm/slope.threshold_mm)*100)) + '%';
       document.getElementById('landslide-overlay').classList.remove('hidden');
-      if (navigator.vibrate) navigator.vibrate([200, 80, 200, 80, 400, 80, 400]);
-      window.pushNotification({
-        title: `Landslide risk · ${region.name}`,
-        body: `${Math.round(mm)}mm in 24h — ${slope.advice}`,
-        icon: '⛰️', color: 'bg-orange-100 text-orange-700'
-      });
+      if (navigator.vibrate) navigator.vibrate([200,80,200,80,400,80,400]);
+      window.pushNotification({ title: `Landslide risk · ${region.name}`, body: `${Math.round(mm)}mm — ${slope.advice}`, icon: '⛰️', color: 'bg-orange-100 text-orange-700' });
+      sendBrowserNotif(`Landslide risk · ${region.name}`, slope.advice);
     }
-
-    document.getElementById('landslide-dismiss').addEventListener('click', () =>
-      document.getElementById('landslide-overlay').classList.add('hidden'));
-
-    // Demo: open DevTools Console → type triggerLandslide()
+    document.getElementById('landslide-dismiss').addEventListener('click', () => document.getElementById('landslide-overlay').classList.add('hidden'));
     window.triggerLandslide = () => fireLandslideAlert(128, { threshold_mm: 100, advice: 'Mandi–Kullu stretch unstable. Avoid NH-21.' }, { name: 'Himachal Pradesh' });
 
-    // === BOOT ===
-    document.getElementById('searchBar').addEventListener('input', handleSearch);
-    setupTiles(); setupOffline(); renderNotifs(); loadData();
-    loadRegions();
-    updateWeather();
-    checkLandslideRisk();
-
-    // Re-run when user switches region
-    document.getElementById('region-btn').addEventListener('click', () => {
-      setTimeout(() => { updateWeather(); checkLandslideRisk(); }, 500);
-    });
-    // === EMERGENCY CONTACTS (localStorage) ===
+    // Contacts
     const CONTACT_KEY = 'resqing-contacts';
-    let contacts = [];
-    let editingContactId = null;
-
-    function loadContacts() {
-      try { contacts = JSON.parse(localStorage.getItem(CONTACT_KEY) || '[]'); }
-      catch { contacts = []; }
-    }
-
-    function saveContactsStore() {
-      localStorage.setItem(CONTACT_KEY, JSON.stringify(contacts));
-    }
-
+    let contacts = [], editingContactId = null;
+    function loadContacts() { try { contacts = JSON.parse(localStorage.getItem(CONTACT_KEY) || '[]'); } catch { contacts = []; } }
+    function saveContactsStore() { localStorage.setItem(CONTACT_KEY, JSON.stringify(contacts)); }
     function renderContacts() {
       const list = document.getElementById('contact-list');
-      if (contacts.length === 0) {
-        list.innerHTML = '<div class="text-xs text-slate-400 text-center py-6 bg-white rounded-xl">No emergency contacts yet. Tap + Add.</div>';
-        return;
-      }
-      const avatars = ['#DC2626','#2563EB','#059669','#F59E0B','#7C3AED'];
-      list.innerHTML = contacts.map((c, i) => `
-        <div class="bg-white rounded-xl p-3 shadow-sm flex items-center gap-3" data-id="${c.id}">
-          <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0" style="background:${avatars[i % avatars.length]}">${(c.name||'?')[0].toUpperCase()}</div>
-          <div class="flex-1 min-w-0">
-            <div class="text-sm font-bold text-slate-900 truncate">${c.name}</div>
-            <div class="text-[11px] text-slate-500 truncate">${c.role || '—'}</div>
-            <div class="text-[10px] text-slate-400 font-mono">${c.phone}</div>
-          </div>
-          <div class="flex gap-1">
-            <a href="tel:${c.phone}" class="w-8 h-8 bg-emerald-500 text-white rounded-lg flex items-center justify-center" title="Call">📞</a>
-            <a href="sms:${c.phone}?body=HELP%20I%20need%20you" class="w-8 h-8 bg-sky-100 text-sky-700 rounded-lg flex items-center justify-center" title="SMS">💬</a>
-            <button class="contact-edit w-8 h-8 bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center" data-id="${c.id}" title="Edit">✎</button>
-            <button class="contact-del w-8 h-8 bg-red-100 text-red-600 rounded-lg flex items-center justify-center" data-id="${c.id}" title="Delete">✕</button>
-          </div>
-        </div>
-      `).join('');
+      if (contacts.length === 0) { list.innerHTML = '<div class="text-xs text-slate-400 text-center py-6 bg-white rounded-xl">No emergency contacts yet. Tap + Add.</div>'; return; }
+      const colors = ['#DC2626','#2563EB','#059669','#F59E0B','#7C3AED'];
+      list.innerHTML = contacts.map((c, i) => `<div class="bg-white rounded-xl p-3 shadow-sm flex items-center gap-3"><div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0" style="background:${colors[i%5]}">${(c.name||'?')[0].toUpperCase()}</div><div class="flex-1 min-w-0"><div class="text-sm font-bold text-slate-900 truncate">${c.name}</div><div class="text-[11px] text-slate-500 truncate">${c.role || '—'}</div><div class="text-[10px] text-slate-400 font-mono">${c.phone}</div></div><div class="flex gap-1"><a href="tel:${c.phone}" class="w-8 h-8 bg-emerald-500 text-white rounded-lg flex items-center justify-center">📞</a><a href="sms:${c.phone}" class="w-8 h-8 bg-sky-100 text-sky-700 rounded-lg flex items-center justify-center">💬</a><button class="contact-edit w-8 h-8 bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center" data-id="${c.id}">✎</button><button class="contact-del w-8 h-8 bg-red-100 text-red-600 rounded-lg flex items-center justify-center" data-id="${c.id}">✕</button></div></div>`).join('');
     }
-
-    function openContactModal(contact = null) {
-      editingContactId = contact?.id || null;
-      document.getElementById('contact-modal-title').textContent = contact ? 'Edit contact' : 'Add contact';
-      document.getElementById('contact-name').value = contact?.name || '';
-      document.getElementById('contact-role').value = contact?.role || '';
-      document.getElementById('contact-phone').value = contact?.phone || '';
+    function openContactModal(c=null) {
+      editingContactId = c?.id || null;
+      document.getElementById('contact-modal-title').textContent = c ? 'Edit contact' : 'Add contact';
+      document.getElementById('contact-name').value = c?.name || '';
+      document.getElementById('contact-role').value = c?.role || '';
+      document.getElementById('contact-phone').value = c?.phone || '';
       document.getElementById('contact-modal').classList.remove('hidden');
     }
-
-    function closeContactModal() {
-      document.getElementById('contact-modal').classList.add('hidden');
-    }
-
-    document.getElementById('contact-add').addEventListener('click', () => {
-      if (contacts.length >= 5) { alert('Max 5 contacts. Delete one first.'); return; }
-      openContactModal();
-    });
-    document.getElementById('contact-cancel').addEventListener('click', closeContactModal);
+    document.getElementById('contact-add').addEventListener('click', () => { if (contacts.length >= 5) return alert('Max 5'); openContactModal(); });
+    document.getElementById('contact-cancel').addEventListener('click', () => document.getElementById('contact-modal').classList.add('hidden'));
     document.getElementById('contact-save').addEventListener('click', () => {
       const name = document.getElementById('contact-name').value.trim();
       const role = document.getElementById('contact-role').value.trim();
       const phone = document.getElementById('contact-phone').value.trim();
-      if (!name || !phone) { alert('Name + phone required'); return; }
-
-      if (editingContactId) {
-        const c = contacts.find(x => x.id === editingContactId);
-        if (c) { c.name = name; c.role = role; c.phone = phone; }
-      } else {
-        contacts.push({ id: Date.now(), name, role, phone });
-      }
-      saveContactsStore();
-      renderContacts();
-      closeContactModal();
+      if (!name || !phone) return alert('Name + phone required');
+      if (editingContactId) { const c = contacts.find(x=>x.id===editingContactId); if (c) { c.name=name; c.role=role; c.phone=phone; } }
+      else contacts.push({ id: Date.now(), name, role, phone });
+      saveContactsStore(); renderContacts(); document.getElementById('contact-modal').classList.add('hidden');
     });
     document.getElementById('contact-list').addEventListener('click', (e) => {
-      const editBtn = e.target.closest('.contact-edit');
-      const delBtn = e.target.closest('.contact-del');
-      if (editBtn) {
-        const c = contacts.find(x => x.id === Number(editBtn.dataset.id));
-        if (c) openContactModal(c);
-      } else if (delBtn) {
-        if (!confirm('Delete this contact?')) return;
-        contacts = contacts.filter(x => x.id !== Number(delBtn.dataset.id));
-        saveContactsStore();
-        renderContacts();
-      }
+      const ed = e.target.closest('.contact-edit'); const dl = e.target.closest('.contact-del');
+      if (ed) openContactModal(contacts.find(x=>x.id===Number(ed.dataset.id)));
+      else if (dl && confirm('Delete?')) { contacts = contacts.filter(x=>x.id!==Number(dl.dataset.id)); saveContactsStore(); renderContacts(); }
     });
 
-    loadContacts();
-    renderContacts();
+    // Boot
+    document.getElementById('searchBar').addEventListener('input', handleSearch);
+    setupTiles(); setupOffline(); renderNotifs(); loadData(); loadRegions(); updateWeather(); checkLandslideRisk(); loadContacts(); renderContacts();
+    document.getElementById('region-btn').addEventListener('click', () => setTimeout(() => { updateWeather(); checkLandslideRisk(); }, 500));
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js');
   </script>
 </body>
