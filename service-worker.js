@@ -1,6 +1,6 @@
 // Caches files so the app works offline after first visit
 
-const CACHE = 'ResQing-v3';
+const CACHE = 'ResQing-v10';
 
 // Only cache our own files during install (safe, no CORS issues)
 const FILES = [
