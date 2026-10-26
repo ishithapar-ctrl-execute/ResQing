@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0F172A" />
+  <title>ResQuing — Find help, even when the network disappears</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/idb@8.0.0/build/umd.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="manifest" href="manifest.json" />
+
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; padding-bottom: 70px; }
+    .brand-pill { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.08); padding: 4px 12px; border-radius: 999px; font-size: 11px; letter-spacing: 0.08em; color: #CBD5E1; font-weight: 600; }
+    .accent-dot { width: 6px; height: 6px; background: #F97316; border-radius: 999px; box-shadow: 0 0 8px #F97316; }
+    .tile { aspect-ratio: 1; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; transition: transform 0.15s; box-shadow: 0 1px 3px rgba(15,23,42,.05); }
+    .tile:active { transform: scale(0.97); }
+    .tile-shelter  { background: linear-gradient(135deg, #C2DDF0, #A0C4E0); color: #1E3A5F; }
+    .tile-hospital { background: linear-gradient(135deg, #FACBC9, #F49E9B); color: #6E1E1E; }
+    .tile-ngo      { background: linear-gradient(135deg, #C2EBC2, #96D7A5); color: #1F4A2A; }
+    .tile-sos      { background: linear-gradient(135deg, #FBD3A7, #F0B06E); color: #5E2E0A; }
+    .tile-shelter svg{stroke:#1E3A5F}.tile-hospital svg{stroke:#6E1E1E}.tile-ngo svg{stroke:#1F4A2A}.tile-sos svg{stroke:#5E2E0A}
+    @keyframes alertPulse { 0%,100% { background: radial-gradient(circle, #DC2626, #7F1D1D); } 50% { background: radial-gradient(circle, #B91C1C, #450A0A); } }
+    .mini-map { height: 140px; border-radius: 14px; overflow: hidden; cursor: pointer; }
+    .alert-map { height: 180px; width: 100%; max-width: 420px; border-radius: 14px; overflow: hidden; margin: 12px auto; }
+    .epicenter-dot { width: 18px; height: 18px; background: #DC2626; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 0 0 rgba(220,38,38,0.7); animation: epi 1.5s infinite; }
+    @keyframes epi { 0% { box-shadow: 0 0 0 0 rgba(220,38,38,0.7); } 70% { box-shadow: 0 0 0 18px rgba(220,38,38,0); } 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0); } }
+    .bell { position: relative; }
+    .bell-badge { position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; padding: 0 4px; background: #DC2626; color: white; border-radius: 999px; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; border: 2px solid #0F172A; }
+    .notif-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 100%; max-width: 380px; background: white; z-index: 45; transform: translateX(100%); transition: transform 0.25s ease; box-shadow: -8px 0 24px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
+    .notif-panel.open { transform: translateX(0); }
+    .notif-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 44; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+    .notif-backdrop.open { opacity: 1; pointer-events: auto; }
+    .notif-item { padding: 14px 16px; border-bottom: 1px solid #F1F5F9; display: flex; gap: 10px; align-items: start; cursor: pointer; }
+    .notif-item.unread { background: #FEF3E8; }
+    .notif-icon { width: 32px; height: 32px; border-radius: 999px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #E2E8F0; display: flex; justify-content: space-around; padding: 8px 0 10px; z-index: 30; box-shadow: 0 -2px 10px rgba(15,23,42,0.04); padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; font-weight: 600; color: #94A3B8; text-decoration: none; min-width: 56px; padding: 4px 0; }
+    .nav-item.active { color: #DC2626; }
+    .nav-item svg { width: 22px; height: 22px; }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+  <div id="alert-overlay" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-center text-white" style="animation: alertPulse 1.2s ease-in-out infinite;">
+    <div class="text-5xl mb-2">⚠️</div>
+    <div class="brand-pill mb-2" style="background:rgba(255,255,255,.15);color:#FEE2E2"><span class="accent-dot"></span> ACTIVE EMERGENCY</div>
+    <h2 id="alert-title" class="text-2xl font-extrabold">FLOOD ALERT</h2>
+    <p id="alert-body" class="text-sm max-w-sm mt-1">Yamuna crossing danger mark. Move to higher ground immediately.</p>
+    <p class="text-xs opacity-75 mb-2">Issued by Delhi Flood Control · 1077</p>
+    <div id="alert-map" class="alert-map"></div>
+    <p class="text-xs opacity-90 mb-3">🔴 Red zone = flood area · ⚠️ Arrow = water approaching</p>
+    <div class="flex gap-3 items-end">
+      <div class="relative">
+        <button id="alert-actions-btn" class="bg-white text-red-700 font-bold px-5 py-3 rounded-xl shadow-lg flex items-center gap-2">🆘 Get help <span style="font-size:10px">▼</span></button>
+        <div id="alert-actions-menu" class="hidden absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-2xl overflow-hidden min-w-[240px] text-left">
+          <a href="tel:1077" class="flex items-center gap-3 px-4 py-3 text-slate-900 text-sm font-semibold hover:bg-slate-50 border-b border-slate-100"><span class="text-xl">📞</span><div><div>Call Flood Control</div><div class="text-[11px] text-slate-500">1077 · 24/7</div></div></a>
+          <a href="sms:1077?body=HELP%20—%20I%20need%20rescue.%20Please%20send%20help." class="flex items-center gap-3 px-4 py-3 text-slate-900 text-sm font-semibold hover:bg-slate-50 border-b border-slate-100"><span class="text-xl">💬</span><div><div>Send SMS to 1077</div><div class="text-[11px] text-slate-500">Pre-filled HELP message</div></div></a>
+          <a href="#" id="action-share" class="flex items-center gap-3 px-4 py-3 text-slate-900 text-sm font-semibold hover:bg-slate-50 border-b border-slate-100"><span class="text-xl">📍</span><div><div>Share my location</div><div class="text-[11px] text-slate-500">Via SMS with map link</div></div></a>
+          <a href="tel:112" class="flex items-center gap-3 px-4 py-3 text-red-700 text-sm font-bold hover:bg-red-50"><span class="text-xl">🚨</span><div><div>Call 112 — Emergency</div><div class="text-[11px] text-slate-500">All services</div></div></a>
+        </div>
+      </div>
+      <button id="alert-dismiss" class="bg-white/20 border border-white/40 text-white font-bold px-5 py-3 rounded-xl">I'm safe</button>
+    </div>
+  </div>
+
+  <div id="notif-backdrop" class="notif-backdrop"></div>
+  <aside id="notif-panel" class="notif-panel">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+      <h2 class="font-bold text-slate-900">Alerts & updates</h2>
+      <button id="notif-close" class="text-slate-500 text-xl leading-none">✕</button>
+    </div>
+    <div class="flex items-center justify-between px-4 py-2 text-xs text-slate-500">
+      <span id="notif-count">0 alerts</span>
+      <button id="notif-mark-read" class="text-orange-600 font-semibold">Mark all read</button>
+    </div>
+    <div id="notif-list" class="flex-1 overflow-y-auto"></div>
+  </aside>
+
+  <header class="bg-slate-900 text-white px-5 pt-8 pb-10 rounded-b-3xl">
+    <div class="max-w-md mx-auto">
+      <div class="flex items-center justify-between mb-4">
+        <span class="brand-pill"><span class="accent-dot"></span>RESQUING · <span id="district-chip">DELHI</span></span>
+        <div class="flex items-center gap-3">
+          <button id="bell" class="bell text-slate-300 hover:text-white">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span id="bell-badge" class="bell-badge hidden">0</span>
+          </button>
+          <span id="status-chip" class="text-xs text-slate-400">Loading...</span>
+        </div>
+      </div>
+      <h1 class="text-2xl font-bold leading-tight mb-1">Find help nearby</h1>
+      <p class="text-sm text-slate-400 mb-5">Works offline. Last synced <span id="last-sync">just now</span>.</p>
+      <div class="bg-white rounded-xl flex items-center gap-2 px-4 py-3 shadow-lg">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>
+        <input id="searchBar" type="text" placeholder="Search by name, area, PIN..." class="bg-transparent flex-1 text-sm text-slate-900 outline-none placeholder-slate-400" />
+      </div>
+      <a href="map.html" class="block mt-4">
+        <div id="mini-map" class="mini-map ring-2 ring-white/20 hover:ring-orange-400 transition"></div>
+        <div class="text-[10px] text-slate-400 mt-1 text-center">Tap map to open full view →</div>
+      </a>
+    </div>
+  </header>
+
+  <main class="max-w-md mx-auto px-5 -mt-4">
+    <div id="offline-banner" class="hidden mb-4 bg-orange-50 border border-orange-200 text-orange-900 rounded-xl px-4 py-2.5 text-xs font-semibold flex items-center gap-2">
+      <span class="w-2 h-2 bg-orange-500 rounded-full"></span>You are offline — showing saved data
+    </div>
+    <section id="tiles" class="grid grid-cols-2 gap-3 mb-6">
+      <div class="tile tile-shelter" data-type="shelter">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
+        <div><div id="count-shelter" class="text-3xl font-extrabold leading-none">—</div><div class="text-xs font-semibold mt-1">Shelters</div></div>
+      </div>
+      <div class="tile tile-hospital" data-type="hospital">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M9 2h6v6h6v6h-6v6H9v-6H3V8h6z"/></svg>
+        <div><div id="count-hospital" class="text-3xl font-extrabold leading-none">—</div><div class="text-xs font-semibold mt-1">Hospitals</div></div>
+      </div>
+      <div class="tile tile-ngo" data-type="ngo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 16 0v2"/></svg>
+        <div><div id="count-ngo" class="text-3xl font-extrabold leading-none">—</div><div class="text-xs font-semibold mt-1">NGOs</div></div>
+      </div>
+      <div class="tile tile-sos" data-type="sos">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M22 16.92V21a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.86 19.86 0 0 1 2.12 5.18 2 2 0 0 1 4.1 3h4.09a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.91 11.09a16 16 0 0 0 6 6l1.45-1.45a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92z"/></svg>
+        <div><div id="count-sos" class="text-3xl font-extrabold leading-none">—</div><div class="text-xs font-semibold mt-1">SOS Numbers</div></div>
+      </div>
+    </section>
+    <section>
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xs font-bold text-slate-600 uppercase tracking-wider">Resources</h2>
+        <span id="result-count" class="text-xs text-slate-500">—</span>
+      </div>
+      <div id="results" class="space-y-2 pb-6"><div class="text-sm text-slate-400 text-center py-8">Loading resources...</div></div>
+    </section>
+  </main>
+
+  <button id="demo-alert-btn" class="hidden"></button>
+
+  <nav class="bottom-nav">
+    <a href="index.html" class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>Home</a>
+    <a href="map.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2L2 5v17l7-3 6 3 7-3V2l-7 3-6-3z"/><path d="M9 2v17M15 5v17"/></svg>Map</a>
+    <a href="#" onclick="document.getElementById('bell').click();return false;" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Alerts</a>
+    <a href="#" onclick="document.getElementById('demo-alert-btn').click();return false;" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>SOS</a>
+  </nav>
+
+  <script>
+    const STARTER_DATA = [
+      { id: 's1', type: 'shelter', name: 'Govt Boys Sr. Sec. School', address: 'Yamuna Bazaar, Delhi', phone: '011-23967890', district: 'Central Delhi' },
+      { id: 's2', type: 'shelter', name: 'DAV Public School', address: 'Civil Lines, Delhi', phone: '011-23921234', district: 'North Delhi' },
+      { id: 'h1', type: 'hospital', name: 'LNJP Hospital', address: 'Jawaharlal Nehru Marg', phone: '011-23234242', district: 'Central Delhi' },
+      { id: 'h2', type: 'hospital', name: 'GB Pant Hospital', address: 'Jawaharlal Nehru Marg', phone: '011-23234242', district: 'Central Delhi' },
+      { id: 'n1', type: 'ngo', name: 'Goonj Delhi', address: 'Sarita Vihar, Delhi', phone: '011-26972351', district: 'South Delhi' },
+      { id: 'n2', type: 'ngo', name: 'Delhi Flood Relief', address: 'Connaught Place', phone: '011-23412345', district: 'Central Delhi' },
+      { id: 'sos1', type: 'sos', name: 'Delhi Flood Control Room', address: 'Available 24/7', phone: '1077', district: 'All Delhi' },
+      { id: 'sos2', type: 'sos', name: 'Delhi Police Emergency', address: 'Available 24/7', phone: '112', district: 'All Delhi' }
+    ];
+    let allEntries = [], activeFilter = null;
+
+    async function loadData() {
+      try {
+        const db = await idb.openDB('resquing', 1, { upgrade(db) { db.createObjectStore('entries', { keyPath: 'id' }); } });
+        let entries = await db.getAll('entries');
+        if (entries.length === 0) {
+          const tx = db.transaction('entries', 'readwrite');
+          for (const e of STARTER_DATA) await tx.store.put(e);
+          await tx.done;
+          entries = STARTER_DATA;
+        }
+        allEntries = entries;
+      } catch (err) { console.error(err); allEntries = STARTER_DATA; }
+      updateCounts(); renderResults(allEntries);
+    }
+
+    function updateCounts() {
+      const counts = { shelter: 0, hospital: 0, ngo: 0, sos: 0 };
+      for (const e of allEntries) counts[e.type] = (counts[e.type] || 0) + 1;
+      for (const type in counts) document.getElementById('count-' + type).textContent = counts[type];
+    }
+
+    function renderResults(entries) {
+      const el = document.getElementById('results');
+      document.getElementById('result-count').textContent = entries.length + ' found';
+      if (entries.length === 0) { el.innerHTML = '<div class="text-sm text-slate-400 text-center py-8">No matches.</div>'; return; }
+      const colors = { shelter:'bg-blue-100 text-blue-800', hospital:'bg-red-100 text-red-800', ngo:'bg-emerald-100 text-emerald-800', sos:'bg-orange-100 text-orange-800' };
+      el.innerHTML = entries.map(e => `
+        <div class="bg-white rounded-xl p-3 shadow-sm flex gap-3 items-start">
+          <div class="w-10 h-10 rounded-lg ${colors[e.type]} flex items-center justify-center font-bold text-sm shrink-0">${e.type[0].toUpperCase()}</div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold text-slate-900 truncate">${e.name}</div>
+            <div class="text-xs text-slate-500 truncate">${e.address}</div>
+          </div>
+          <a href="tel:${e.phone}" class="text-xs bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-semibold shrink-0">📞 Call</a>
+        </div>`).join('');
+    }
+
+    function handleSearch() {
+      const q = document.getElementById('searchBar').value.toLowerCase().trim();
+      let filtered = allEntries;
+      if (activeFilter) filtered = filtered.filter(e => e.type === activeFilter);
+      if (q) filtered = filtered.filter(e => e.name.toLowerCase().includes(q) || e.address.toLowerCase().includes(q) || (e.district||'').toLowerCase().includes(q));
+      renderResults(filtered);
+    }
+
+    function setupTiles() {
+      document.querySelectorAll('.tile').forEach(tile => {
+        tile.addEventListener('click', () => {
+          const type = tile.dataset.type;
+          activeFilter = (activeFilter === type) ? null : type;
+          document.querySelectorAll('.tile').forEach(t => t.style.opacity = (activeFilter === null || t.dataset.type === activeFilter) ? '1' : '0.4');
+          handleSearch();
+        });
+      });
+    }
+
+    function setupOffline() {
+      const banner = document.getElementById('offline-banner');
+      const chip = document.getElementById('status-chip');
+      const update = () => {
+        if (navigator.onLine) { banner.classList.add('hidden'); chip.textContent = '● Online'; }
+        else { banner.classList.remove('hidden'); chip.textContent = '✈ Offline'; }
+      };
+      window.addEventListener('online', update); window.addEventListener('offline', update); update();
+    }
+
+    let notifications = [
+      { id: 1, title: 'Flood warning · Yamuna Bazaar', body: 'Water crossed danger mark 206m. Evacuation in progress.', time: '2 min ago', unread: true, icon: '⚠️', color: 'bg-red-100 text-red-700' },
+      { id: 2, title: 'Heavy rain expected', body: '85mm forecast for tomorrow.', time: '1 hr ago', unread: true, icon: '🌧️', color: 'bg-blue-100 text-blue-700' },
+      { id: 3, title: 'Goonj Delhi — new relief camp', body: 'Food packets at Sarita Vihar.', time: '3 hr ago', unread: false, icon: '🤝', color: 'bg-emerald-100 text-emerald-700' },
+      { id: 4, title: 'LNJP added 20 beds', body: 'Shelter capacity update.', time: '5 hr ago', unread: false, icon: 'ℹ️', color: 'bg-slate-100 text-slate-700' }
+    ];
+    function renderNotifs() {
+      const list = document.getElementById('notif-list');
+      const unread = notifications.filter(n => n.unread).length;
+      document.getElementById('notif-count').textContent = `${notifications.length} alerts · ${unread} unread`;
+      const badge = document.getElementById('bell-badge');
+      if (unread > 0) { badge.classList.remove('hidden'); badge.textContent = unread; } else badge.classList.add('hidden');
+      list.innerHTML = notifications.map(n => `
+        <div class="notif-item ${n.unread ? 'unread' : ''}" data-id="${n.id}">
+          <div class="notif-icon ${n.color}">${n.icon}</div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold text-slate-900">${n.title}</div>
+            <div class="text-xs text-slate-500 mt-0.5">${n.body}</div>
+            <div class="text-[10px] text-slate-400 mt-1">${n.time}</div>
+          </div>
+        </div>`).join('');
+    }
+    document.getElementById('bell').addEventListener('click', () => { document.getElementById('notif-panel').classList.add('open'); document.getElementById('notif-backdrop').classList.add('open'); });
+    const closeNotifs = () => { document.getElementById('notif-panel').classList.remove('open'); document.getElementById('notif-backdrop').classList.remove('open'); };
+    document.getElementById('notif-close').addEventListener('click', closeNotifs);
+    document.getElementById('notif-backdrop').addEventListener('click', closeNotifs);
+    document.getElementById('notif-mark-read').addEventListener('click', () => { notifications.forEach(n => n.unread = false); renderNotifs(); });
+    document.getElementById('notif-list').addEventListener('click', (e) => { const item = e.target.closest('.notif-item'); if (!item) return; const n = notifications.find(x => x.id === Number(item.dataset.id)); if (n) n.unread = false; renderNotifs(); });
+    window.pushNotification = (notif) => { notifications.unshift({ id: Date.now(), unread: true, time: 'just now', ...notif }); renderNotifs(); };
+
+    let homeMap = null, alertMap = null;
+    function makeMiniMap(elId) {
+      const m = L.map(elId, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false }).setView([28.6139, 77.2090], 11);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 15 }).addTo(m);
+      return m;
+    }
+    function markEpicenter(map, lat, lng) {
+      const icon = L.divIcon({ className: '', iconSize: [24, 24], iconAnchor: [12, 12], html: '<div class="epicenter-dot"></div>' });
+      L.marker([lat, lng], { icon }).addTo(map);
+      L.circle([lat, lng], { radius: 1500, color: '#DC2626', weight: 1.5, fillColor: '#DC2626', fillOpacity: 0.1, dashArray: '4 4' }).addTo(map);
+      map.setView([lat, lng], 13);
+    }
+    function drawFloodArrow(map, lat, lng) {
+      const from = [lat + 0.015, lng + 0.015], to = [lat + 0.003, lng + 0.003];
+      L.polyline([from, to], { color: '#DC2626', weight: 4, lineCap: 'round' }).addTo(map);
+      L.circleMarker(to, { radius: 6, fillColor: '#DC2626', color: 'white', weight: 2, fillOpacity: 1 }).addTo(map);
+    }
+
+    homeMap = makeMiniMap('mini-map');
+    navigator.geolocation?.getCurrentPosition(
+      (pos) => markEpicenter(homeMap, pos.coords.latitude, pos.coords.longitude),
+      (err) => console.warn('location:', err.message),
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+
+    function triggerAlert({ title = 'FLOOD ALERT', body = 'Move to higher ground immediately.' } = {}) {
+      document.getElementById('alert-title').textContent = title;
+      document.getElementById('alert-body').textContent = body;
+      document.getElementById('alert-overlay').classList.remove('hidden');
+      if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 500]);
+      window.pushNotification({ title, body, icon: '⚠️', color: 'bg-red-100 text-red-700' });
+      setTimeout(() => {
+        if (!alertMap) alertMap = makeMiniMap('alert-map');
+        alertMap.invalidateSize();
+        navigator.geolocation?.getCurrentPosition(
+          (pos) => { markEpicenter(alertMap, pos.coords.latitude, pos.coords.longitude); drawFloodArrow(alertMap, pos.coords.latitude, pos.coords.longitude); },
+          () => alertMap.setView([28.6139, 77.2090], 12)
+        );
+      }, 100);
+    }
+    document.getElementById('alert-dismiss').addEventListener('click', () => document.getElementById('alert-overlay').classList.add('hidden'));
+    document.getElementById('demo-alert-btn').addEventListener('click', () => triggerAlert({ title: 'FLOOD ALERT', body: 'Yamuna crossing danger mark near Yamuna Bazaar. Move to higher ground now.' }));
+
+    const actionsBtn = document.getElementById('alert-actions-btn');
+    const actionsMenu = document.getElementById('alert-actions-menu');
+    actionsBtn.addEventListener('click', (e) => { e.stopPropagation(); actionsMenu.classList.toggle('hidden'); });
+    document.addEventListener('click', () => actionsMenu.classList.add('hidden'));
+    document.getElementById('action-share').addEventListener('click', (e) => {
+      e.preventDefault();
+      if (!navigator.geolocation) { alert('Location not supported'); return; }
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        const msg = encodeURIComponent(`HELP — I am stuck here: https://maps.google.com/?q=${lat},${lng}`);
+        window.location.href = `sms:1077?body=${msg}`;
+      }, (err) => alert('Could not get location: ' + err.message));
+    });
+
+    document.getElementById('searchBar').addEventListener('input', handleSearch);
+    setupTiles(); setupOffline(); renderNotifs(); loadData();
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js');
+  </script>
+</body>
+</html>
