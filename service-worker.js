@@ -1,14 +1,15 @@
 // Caches files so the app works offline after first visit
 
-const CACHE = 'ResQing-v10';
-
+const CACHE = 'resqing-v12';
 // Only cache our own files during install (safe, no CORS issues)
+
 const FILES = [
   './',
   'index.html',
   'map.html',
   'offline.html',
-  'manifest.json'
+  'manifest.json',
+  'data/delhi-flood.geojson'
 ];
 
 // INSTALL: pre-cache core files
