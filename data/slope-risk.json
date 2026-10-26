@@ -1,0 +1,6 @@
+{
+  "himachal":    { "threshold_mm": 80, "steepness": "high", "advice": "Slopes near Mandi, Kullu, Shimla highly unstable" },
+  "uttarakhand": { "threshold_mm": 90, "steepness": "high", "advice": "Chamoli & Rudraprayag at highest risk" },
+  "kerala":      { "threshold_mm": 100, "steepness": "medium", "advice": "Wayanad & Idukki ghat slopes vulnerable" },
+  "delhi":       { "threshold_mm": 9999, "steepness": "low", "advice": "No slope risk in Delhi" }
+}

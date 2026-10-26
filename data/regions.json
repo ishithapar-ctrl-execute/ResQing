@@ -1,0 +1,34 @@
+{
+  "delhi": {
+    "name": "Delhi NCR",
+    "flag": "🏙️",
+    "center": [28.6139, 77.2090],
+    "zoom": 11,
+    "risk": "Monsoon flooding",
+    "badge": "safe"
+  },
+  "himachal": {
+    "name": "Himachal Pradesh",
+    "flag": "⛰️",
+    "center": [31.1048, 77.1734],
+    "zoom": 9,
+    "risk": "Landslide + flash flood",
+    "badge": "high"
+  },
+  "uttarakhand": {
+    "name": "Uttarakhand",
+    "flag": "🏔️",
+    "center": [30.0668, 79.0193],
+    "zoom": 9,
+    "risk": "Landslide + glacial burst",
+    "badge": "high"
+  },
+  "kerala": {
+    "name": "Kerala",
+    "flag": "🌊",
+    "center": [10.8505, 76.2711],
+    "zoom": 8,
+    "risk": "Monsoon flooding",
+    "badge": "high"
+  }
+}
