@@ -1,9 +1,10 @@
-const CACHE = 'resqing-v19';
+const CACHE = 'resqing-v20';
 const FILES = [
   './', 'index.html', 'map.html', 'offline.html', 'manifest.json',
   'icons/icon-192.png', 'icons/icon-512.png',
   'data/delhi-flood.geojson', 'data/regions.json', 'data/slope-risk.json',
-  'data/himachal.geojson', 'data/kerala.geojson', 'data/uttarakhand.geojson'
+  'data/himachal.geojson', 'data/kerala.geojson', 'data/uttarakhand.geojson',
+  'data/delhi.json'
 ];
 
 self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => Promise.allSettled(FILES.map(u => c.add(u)))).then(() => self.skipWaiting())));

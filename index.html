@@ -227,8 +227,14 @@
       try {
         const db = await idb.openDB('resqing', 1, { upgrade(db) { db.createObjectStore('entries', { keyPath: 'id' }); } });
         let entries = await db.getAll('entries');
-        if (entries.length === 0) { const tx = db.transaction('entries', 'readwrite'); for (const e of STARTER_DATA) await tx.store.put(e); await tx.done; entries = STARTER_DATA; }
-        allEntries = entries;
+if (entries.length === 0) {
+  const res = await fetch('data/delhi.json');
+  const seed = await res.json();
+  const tx = db.transaction('entries', 'readwrite');
+  for (const e of seed) await tx.store.put(e);
+  await tx.done;
+  entries = seed;
+}        allEntries = entries;
       } catch (err) { allEntries = STARTER_DATA; }
       updateCounts(); renderResults(allEntries);
     }
